@@ -1,0 +1,322 @@
+@import "tailwindcss";
+
+/* Hide Chrome, Safari, Edge, Opera number input steppers/arrows */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+/* Hide Firefox number input steppers/arrows */
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 4mm 4mm 4mm 4mm;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    text-shadow: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: inherit !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 10.5pt;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Universal strict hiding of navigation, headers, footers, sidebars, buttons, dialogs, and controls */
+  header,
+  nav,
+  footer,
+  aside,
+  button,
+  input[type="button"],
+  input[type="submit"],
+  #app-header,
+  #main-navbar,
+  #navigation-tabs,
+  #bottom-mobile-nav,
+  #floating-sync-banner,
+  .no-print,
+  .print\:hidden,
+  .toast,
+  [role="dialog"],
+  [role="alert"],
+  [aria-modal="true"],
+  .fixed.inset-0,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Force display for explicit print utility classes */
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:table {
+    display: table !important;
+  }
+
+  .print\:flex {
+    display: flex !important;
+  }
+
+  .print\:inline {
+    display: inline !important;
+  }
+
+  .print\:inline-block {
+    display: inline-block !important;
+  }
+
+  /* Prevent container horizontal clipping and ensure full-width flow */
+  main,
+  .printable-container,
+  .print-area,
+  #target-sheet-printable,
+  #dealer-print-form,
+  #traveling-expenses-printable,
+  #order-bill-printable-container,
+  #reporting-printable-container,
+  #pricelist-printable-container,
+  #scheme-printable-container,
+  #printable-ledger-card,
+  #printable-order-bill-card,
+  #printable-receipt-card,
+  #company-official-letterhead {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Universal auto-fit reset: eliminate fixed min-widths that force overflow on A4 */
+  [class*="min-w-"], .min-w-full {
+    min-width: 0 !important;
+  }
+
+  /* Ensure scrollable wrappers expand fully during print */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Dealer Application Form Specific A4 Single-Page Auto-Fit Frame */
+  #dealer-print-form {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px 12px !important;
+    margin: 0 auto !important;
+    border: 2px solid #000000 !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  #dealer-print-form table td,
+  #dealer-print-form table th {
+    padding-top: 1.5px !important;
+    padding-bottom: 1.5px !important;
+    line-height: 1.2 !important;
+    font-size: 11px !important;
+  }
+
+  #dealer-print-form input,
+  #dealer-print-form textarea {
+    padding: 0 !important;
+    line-height: 1.15 !important;
+    font-size: 11px !important;
+  }
+
+  /* Target Sheet Specific Print Overrides */
+  #target-sheet-printable {
+    border: none !important;
+  }
+
+  #target-sheet-printable > div {
+    min-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Traveling Expenses Specific Print Overrides */
+  #traveling-expenses-printable {
+    border: 2px solid #000000 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #traveling-expenses-printable .print-table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  #traveling-expenses-printable .print-table th,
+  #traveling-expenses-printable .print-table td {
+    font-size: 8.5px !important;
+    padding: 2px 2px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+  }
+
+  /* Tables and Grid alignment: preserve borders, headers, and full app-style colors */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Reporting Page & Daily Activity Logs Print Enhancements: Auto-wrap text on A4 */
+  #reporting-printable-container,
+  #all-officers-report,
+  #single-officer-report {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #reporting-printable-container table,
+  #all-officers-report table,
+  #single-officer-report table,
+  .daily-activity-table {
+    table-layout: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #reporting-printable-container th,
+  #reporting-printable-container td,
+  #all-officers-report th,
+  #all-officers-report td,
+  #single-officer-report th,
+  #single-officer-report td,
+  .daily-activity-table th,
+  .daily-activity-table td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    max-width: none !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Unclip any truncated descriptions, purpose, and discussion text in Daily Activity logs */
+  #reporting-printable-container .truncate,
+  #all-officers-report .truncate,
+  #single-officer-report .truncate,
+  .daily-activity-table .truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    max-width: none !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  th,
+  td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Page break rules for clean multi-page & single-page flow */
+  tr,
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure inputs, textareas, and selects print their typed text cleanly with full contrast */
+  #dealer-print-form input,
+  #dealer-print-form textarea,
+  #dealer-print-form select,
+  #traveling-expenses-printable input,
+  #traveling-expenses-printable textarea,
+  #traveling-expenses-printable select,
+  #target-sheet-printable input,
+  #target-sheet-printable select,
+  .printable-container input,
+  .printable-container textarea,
+  .printable-container select {
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    font-weight: bold !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure images & logos render at high contrast and scale appropriately */
+  img {
+    max-width: 100% !important;
+    height: auto;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

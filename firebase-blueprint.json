@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile and credentials",
+      "type": "object",
+      "properties": {
+        "loginId": { "type": "string" },
+        "password": { "type": "string" },
+        "fullName": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "designation": { "type": "string" },
+        "village": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "territory": { "type": "string" }
+      },
+      "required": ["loginId", "password", "name", "role"]
+    },
+    "DealerApplication": {
+      "title": "Dealer Application",
+      "description": "Registration details for a new dealer",
+      "type": "object",
+      "properties": {
+        "firmName": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "village": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "cancelled"] },
+        "applicationDate": { "type": "string", "format": "date" },
+        "dealerCode": { "type": "string" },
+        "codeSequence": { "type": "number" },
+        "reviewRemarks": { "type": "string" },
+        "approvedDate": { "type": "string" },
+        "cancelledDate": { "type": "string" },
+        "certificateNo": { "type": "string" }
+      },
+      "required": ["firmName", "ownerName", "phone", "status"]
+    },
+    "PriceItem": {
+      "title": "Price Item",
+      "description": "Product price list entry",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "nameMr": { "type": "string" },
+        "unit": { "type": "string" },
+        "mrp": { "type": "number" },
+        "dealerPrice": { "type": "number" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "dealerPrice"]
+    },
+    "Target": {
+      "title": "Target",
+      "description": "Sales target for an executive",
+      "type": "object",
+      "properties": {
+        "executiveName": { "type": "string" },
+        "month": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "achievedAmount": { "type": "number" },
+        "territory": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["executiveName", "targetAmount", "month"]
+    },
+    "TravelExpense": {
+      "title": "Travel Expense",
+      "description": "Travel claim submitted by an employee",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "fromLocation": { "type": "string" },
+        "toLocation": { "type": "string" },
+        "travelMode": { "type": "string" },
+        "distance": { "type": "number" },
+        "claimAmount": { "type": "number" },
+        "otherAmount": { "type": "number" },
+        "totalClaimAmount": { "type": "number" },
+        "purpose": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "paid", "rejected"] },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "approvedBy": { "type": "string" },
+        "approvalDate": { "type": "string" }
+      },
+      "required": ["employeeName", "totalClaimAmount", "status"]
+    },
+    "CompanyDetails": {
+      "title": "Company Details",
+      "description": "Global company configuration and bank info",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "gstin": { "type": "string" },
+        "bankName": { "type": "string" },
+        "accountNo": { "type": "string" },
+        "ifsc": { "type": "string" },
+        "branch": { "type": "string" }
+      }
+    },
+    "ActivityLog": {
+      "title": "Activity Log",
+      "description": "Audit trail of user actions",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "actionMr": { "type": "string" },
+        "module": { "type": "string" },
+        "details": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "System users and profiles"
+    },
+    "dealerApplications": {
+      "schema": "DealerApplication",
+      "description": "Dealer registration records"
+    },
+    "priceList": {
+      "schema": "PriceItem",
+      "description": "Product pricing and catalog"
+    },
+    "targets": {
+      "schema": "Target",
+      "description": "Sales targets and achievement tracking"
+    },
+    "travelExpenses": {
+      "schema": "TravelExpense",
+      "description": "Employee travel claims"
+    },
+    "config": {
+      "schema": "CompanyDetails",
+      "description": "Global settings and company info (single document expected: 'main')"
+    },
+    "activities": {
+      "schema": "ActivityLog",
+      "description": "Audit logs of system usage"
+    }
+  }
+}

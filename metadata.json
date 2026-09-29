@@ -1,0 +1,6 @@
+{
+  "name": "Blackworm Agritech - Enterprise Portal",
+  "description": "Blackworm Agritech Pvt Ltd व्यवस्थापन ॲप: टार्गेट सीट, प्राइस लिस्ट, डीलर ॲप्लिकेशन, ट्रॅव्हलिंग एक्सपेन्सेस, रिपोर्टिंग आणि ०-मिलीसेकंद रिअल-टाइम डेटा ट्रॅकिंग.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
