@@ -92,8 +92,8 @@ export const exportElementToPDF = async (
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      width: isDealerForm ? 780 : undefined,
-      windowWidth: isDealerForm ? 780 : (isLandscape ? 1100 : Math.max(element.scrollWidth, 1000)),
+      width: isDealerForm ? 780 : (elementId.includes('traveling-expenses') || element.id.includes('traveling-expenses') ? 950 : undefined),
+      windowWidth: isDealerForm ? 780 : (elementId.includes('traveling-expenses') || element.id.includes('traveling-expenses') ? 950 : (isLandscape ? 1100 : Math.max(element.scrollWidth, 1000))),
       onclone: (clonedDoc) => {
         const clonedEl = clonedDoc.getElementById(elementId);
         if (clonedEl) {
@@ -107,12 +107,65 @@ export const exportElementToPDF = async (
             clonedEl.style.maxWidth = '780px';
             clonedEl.style.margin = '0 auto';
             clonedEl.style.transform = 'none';
+            clonedEl.style.padding = '8px 12px 28px 12px';
+            clonedEl.style.boxSizing = 'border-box';
+
+            // Remove stamp watermark text/instructions for PDF and Print output so the stamp area is clean and blank
+            clonedEl.querySelectorAll('div').forEach((div) => {
+              const text = div.textContent || '';
+              if (text.includes('Stamp & Seal') || text.includes('Address Stamp Area') || text.includes('Name & Full Address of Dealership') || text.includes('Required')) {
+                if (div.style.position === 'absolute' || div.classList.contains('absolute') || div.querySelector('span')) {
+                  div.style.display = 'none';
+                }
+              }
+            });
+
+            // Ensure all tables have Excel-like grid structure
+            clonedEl.querySelectorAll('table').forEach((tbl) => {
+              const tableEl = tbl as HTMLElement;
+              tableEl.style.borderCollapse = 'collapse';
+              tableEl.style.border = '1px solid #475569';
+              tableEl.style.width = '100%';
+            });
+
+            // Ensure every table cell (including Contact Number, Proprietor Name, Firm Name, etc.) has full crisp Excel-like borders and table-cell display
+            clonedEl.querySelectorAll('td, th').forEach((cell) => {
+              const cellEl = cell as HTMLElement;
+              cellEl.style.border = '1px solid #64748b';
+              cellEl.style.display = 'table-cell';
+              cellEl.style.verticalAlign = 'middle';
+              cellEl.style.padding = '2.5px 5px';
+              cellEl.style.boxSizing = 'border-box';
+            });
+
+            // Enforce ultra-sharp, dark black text for crystal clear print & PDF
+            clonedEl.querySelectorAll('*').forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              if (htmlEl.tagName !== 'IMG' && htmlEl.tagName !== 'SVG' && !htmlEl.querySelector('img')) {
+                htmlEl.style.color = '#000000';
+              }
+            });
           } else {
             clonedEl.style.width = '100%';
           }
+
+          // Enforce strict nowrap and min-width on Date columns and Officer signature cells across all print views
+          clonedEl.querySelectorAll('.date-column, .print-date-cell, input[type="date"], input.date-input').forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            htmlEl.style.whiteSpace = 'nowrap';
+            htmlEl.style.minWidth = '130px';
+            htmlEl.style.wordBreak = 'keep-all';
+          });
+          clonedEl.querySelectorAll('.officer-signature-cell, .officer-name-cell, input[value*="ROHIT"], input[placeholder*="OFFICER"]').forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            htmlEl.style.whiteSpace = 'nowrap';
+            htmlEl.style.minWidth = '180px';
+            htmlEl.style.wordBreak = 'keep-all';
+          });
         }
 
-        // Ensure all inputs, textareas, and selects in cloned doc show their live filled values boldly
+        // Replace all inputs, textareas, and selects with pristine typographic divs in cloned doc
+        // This eliminates browser shadow-DOM form-control clipping and ensures 100% ascender & descender visibility
         const sourceInputs = Array.from(element.querySelectorAll('input, select, textarea'));
         const clonedInputs = clonedEl ? Array.from(clonedEl.querySelectorAll('input, select, textarea')) : [];
 
@@ -122,17 +175,108 @@ export const exportElementToPDF = async (
           const val = src.value || src.getAttribute('value') || '';
           const inp = clonedNode as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-          inp.style.fontWeight = 'bold';
-          inp.style.opacity = '1';
-          inp.style.visibility = 'visible';
-
           if (inp.tagName === 'INPUT') {
             const inputEl = inp as HTMLInputElement;
-            inputEl.setAttribute('value', val);
-            inputEl.value = val;
+            const type = (inputEl.type || 'text').toLowerCase();
+            if (type === 'checkbox' || type === 'radio') {
+              inputEl.checked = (src as HTMLInputElement).checked;
+              if (inputEl.checked) {
+                inputEl.setAttribute('checked', 'checked');
+              } else {
+                inputEl.removeAttribute('checked');
+              }
+              inputEl.style.opacity = '1';
+              inputEl.style.visibility = 'visible';
+            } else {
+              const div = clonedDoc.createElement('div');
+              div.className = inputEl.className;
+              div.classList.remove('leading-none', 'pb-0', 'border-none', 'outline-none');
+              div.style.cssText = inputEl.style.cssText;
+
+              try {
+                const comp = window.getComputedStyle(src);
+                div.style.fontSize = comp.fontSize || '12px';
+                div.style.fontFamily = comp.fontFamily || 'inherit';
+                div.style.letterSpacing = comp.letterSpacing || 'normal';
+                div.style.textAlign = comp.textAlign || 'inherit';
+                div.style.textTransform = comp.textTransform || 'none';
+              } catch (_) {}
+
+              div.textContent = val || inputEl.placeholder || '';
+              div.style.display = 'block';
+              div.style.width = '100%';
+              div.style.lineHeight = '1.4';
+              div.style.minHeight = '20px';
+              div.style.paddingTop = '3px';
+              div.style.paddingBottom = '2px';
+              div.style.overflow = 'visible';
+              div.style.boxSizing = 'border-box';
+              div.style.color = '#000000';
+              div.style.fontWeight = inputEl.classList.contains('font-black') ? '900' : 'bold';
+
+              // Officer name signature area specific enhancement: ample vertical clearance so top never cuts
+              const isOfficerName = inputEl.placeholder?.toUpperCase().includes('OFFICER') || 
+                                    inputEl.value?.toUpperCase().includes('ROHIT') ||
+                                    val.toUpperCase().includes('ROHIT') ||
+                                    inputEl.parentElement?.classList.contains('w-60');
+
+              if (isOfficerName) {
+                div.style.textAlign = 'center';
+                div.style.textTransform = 'uppercase';
+                div.style.fontWeight = '900';
+                div.style.fontSize = '12px';
+                div.style.letterSpacing = '0.05em';
+                div.style.minHeight = '22px';
+                div.style.paddingTop = '4px';
+                div.style.paddingBottom = '3px';
+                div.style.lineHeight = '1.4';
+                div.style.overflow = 'visible';
+                if (inputEl.parentElement) {
+                  inputEl.parentElement.style.overflow = 'visible';
+                  inputEl.parentElement.style.paddingTop = '2px';
+                }
+              }
+
+              if (inputEl.parentNode) {
+                inputEl.parentNode.replaceChild(div, inputEl);
+              }
+            }
           } else if (inp.tagName === 'TEXTAREA') {
-            inp.textContent = val;
-            inp.innerHTML = val.replace(/\n/g, '<br/>');
+            const div = clonedDoc.createElement('div');
+            div.className = inp.className;
+            div.style.cssText = inp.style.cssText;
+            try {
+              const comp = window.getComputedStyle(src);
+              div.style.fontSize = comp.fontSize || '11px';
+              div.style.fontFamily = comp.fontFamily || 'inherit';
+            } catch (_) {}
+            div.innerHTML = val.replace(/\n/g, '<br/>');
+            div.style.display = 'block';
+            div.style.width = '100%';
+            div.style.lineHeight = '1.4';
+            div.style.overflow = 'visible';
+            div.style.color = '#000000';
+            div.style.fontWeight = 'bold';
+            div.style.boxSizing = 'border-box';
+            div.style.padding = '2px 4px';
+            if (inp.parentNode) {
+              inp.parentNode.replaceChild(div, inp);
+            }
+          } else if (inp.tagName === 'SELECT') {
+            const div = clonedDoc.createElement('div');
+            div.className = inp.className;
+            div.style.cssText = inp.style.cssText;
+            div.textContent = val;
+            div.style.display = 'block';
+            div.style.width = '100%';
+            div.style.lineHeight = '1.35';
+            div.style.overflow = 'visible';
+            div.style.color = '#000000';
+            div.style.fontWeight = 'bold';
+            div.style.boxSizing = 'border-box';
+            if (inp.parentNode) {
+              inp.parentNode.replaceChild(div, inp);
+            }
           }
         });
 
@@ -176,12 +320,17 @@ export const exportElementToPDF = async (
 
           clonedDoc.querySelectorAll('th, td, .truncate').forEach((node) => {
             const cell = node as HTMLElement;
-            cell.style.whiteSpace = 'normal';
-            cell.style.overflow = 'visible';
-            cell.style.textOverflow = 'clip';
-            cell.style.wordBreak = 'break-word';
-            cell.style.overflowWrap = 'anywhere';
-            cell.style.maxWidth = 'none';
+            if (cell.classList.contains('keep-nowrap')) {
+              cell.style.whiteSpace = 'nowrap';
+              cell.style.wordBreak = 'keep-all';
+            } else {
+              cell.style.whiteSpace = 'normal';
+              cell.style.overflow = 'visible';
+              cell.style.textOverflow = 'clip';
+              cell.style.wordBreak = 'break-word';
+              cell.style.overflowWrap = 'anywhere';
+              cell.style.maxWidth = 'none';
+            }
           });
         }
       },
@@ -202,9 +351,20 @@ export const exportElementToPDF = async (
     const contentWidth = pdfWidth - margin * 2;
     const contentHeight = (canvas.height * contentWidth) / canvas.width;
 
-    if (isDealerForm || contentHeight <= (pdfHeight - margin * 2) * 1.05) {
+    const isSinglePageFit = elementId.includes('traveling-expenses') || element.id.includes('traveling-expenses');
+    const targetHeight = pdfHeight - margin * 2;
+
+    if (isSinglePageFit) {
+      // Proportional fit to ensure 100% of rows (including Officer Name & Signature) fit on 1 A4 page without clipping
+      const scaleFactor = isDealerForm ? Math.min(0.93, (targetHeight / contentHeight) * 0.93) : Math.min(1, targetHeight / contentHeight);
+      const finalWidth = contentWidth * scaleFactor;
+      const finalHeight = contentHeight * scaleFactor;
+      const xOffset = margin + (contentWidth - finalWidth) / 2;
+      const yOffset = margin;
+      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+    } else if (contentHeight <= targetHeight * 1.05) {
       // Single A4 page fit: ensure it never spills onto an unnecessary page 2
-      const finalHeight = Math.min(contentHeight, pdfHeight - margin * 2);
+      const finalHeight = Math.min(contentHeight, targetHeight);
       pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, finalHeight);
     } else {
       // Multi-page splitting
@@ -323,6 +483,99 @@ export const executeSystemPrint = async (
     styleTags += node.outerHTML;
   });
 
+  const printClone = el.cloneNode(true) as HTMLElement;
+  const srcInputs = Array.from(el.querySelectorAll('input, select, textarea'));
+  const cloneInputs = Array.from(printClone.querySelectorAll('input, select, textarea'));
+
+  cloneInputs.forEach((clonedNode, idx) => {
+    const src = srcInputs[idx] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    if (!src) return;
+    const val = src.value || src.getAttribute('value') || '';
+
+    if (clonedNode.tagName === 'INPUT') {
+      const inputEl = clonedNode as HTMLInputElement;
+      const type = (inputEl.type || 'text').toLowerCase();
+      if (type === 'checkbox' || type === 'radio') {
+        inputEl.checked = (src as HTMLInputElement).checked;
+        if (inputEl.checked) inputEl.setAttribute('checked', 'checked');
+        else inputEl.removeAttribute('checked');
+      } else {
+        const div = document.createElement('div');
+        div.className = inputEl.className;
+        div.classList.remove('leading-none', 'pb-0', 'border-none', 'outline-none');
+        div.style.cssText = inputEl.style.cssText;
+        div.textContent = val || inputEl.placeholder || '';
+        div.style.display = 'block';
+        div.style.width = '100%';
+        div.style.lineHeight = '1.4';
+        div.style.minHeight = '20px';
+        div.style.paddingTop = '3px';
+        div.style.paddingBottom = '2px';
+        div.style.overflow = 'visible';
+        div.style.boxSizing = 'border-box';
+        div.style.color = '#000000';
+        div.style.fontWeight = inputEl.classList.contains('font-black') ? '900' : 'bold';
+
+        const isOfficerName = inputEl.placeholder?.toUpperCase().includes('OFFICER') || 
+                              inputEl.value?.toUpperCase().includes('ROHIT') ||
+                              val.toUpperCase().includes('ROHIT') ||
+                              inputEl.parentElement?.classList.contains('w-60');
+
+        if (isOfficerName) {
+          div.style.textAlign = 'center';
+          div.style.textTransform = 'uppercase';
+          div.style.fontWeight = '900';
+          div.style.fontSize = '12px';
+          div.style.letterSpacing = '0.05em';
+          div.style.minHeight = '22px';
+          div.style.paddingTop = '4px';
+          div.style.paddingBottom = '3px';
+          div.style.lineHeight = '1.4';
+          div.style.overflow = 'visible';
+          if (inputEl.parentElement) {
+            inputEl.parentElement.style.overflow = 'visible';
+            inputEl.parentElement.style.paddingTop = '2px';
+          }
+        }
+
+        if (inputEl.parentNode) {
+          inputEl.parentNode.replaceChild(div, inputEl);
+        }
+      }
+    } else if (clonedNode.tagName === 'TEXTAREA') {
+      const div = document.createElement('div');
+      div.className = clonedNode.className;
+      div.style.cssText = (clonedNode as HTMLElement).style.cssText;
+      div.innerHTML = val.replace(/\n/g, '<br/>');
+      div.style.display = 'block';
+      div.style.width = '100%';
+      div.style.lineHeight = '1.4';
+      div.style.overflow = 'visible';
+      div.style.color = '#000000';
+      div.style.fontWeight = 'bold';
+      div.style.boxSizing = 'border-box';
+      div.style.padding = '2px 4px';
+      if (clonedNode.parentNode) {
+        clonedNode.parentNode.replaceChild(div, clonedNode);
+      }
+    } else if (clonedNode.tagName === 'SELECT') {
+      const div = document.createElement('div');
+      div.className = clonedNode.className;
+      div.style.cssText = (clonedNode as HTMLElement).style.cssText;
+      div.textContent = val;
+      div.style.display = 'block';
+      div.style.width = '100%';
+      div.style.lineHeight = '1.35';
+      div.style.overflow = 'visible';
+      div.style.color = '#000000';
+      div.style.fontWeight = 'bold';
+      div.style.boxSizing = 'border-box';
+      if (clonedNode.parentNode) {
+        clonedNode.parentNode.replaceChild(div, clonedNode);
+      }
+    }
+  });
+
   const printHTML = `<!DOCTYPE html>
 <html lang="mr">
   <head>
@@ -363,16 +616,41 @@ export const executeSystemPrint = async (
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 auto !important;
+        padding: 6px 10px 16px 10px !important;
         box-sizing: border-box !important;
+        height: auto !important;
+        overflow: visible !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        page-break-after: avoid !important;
+      }
+      #dealer-print-form table {
+        border-collapse: collapse !important;
+        border: 1px solid #475569 !important;
+        width: 100% !important;
+      }
+      #dealer-print-form td, #dealer-print-form th {
+        border: 1px solid #64748b !important;
+        padding: 2.5px 5px !important;
+        display: table-cell !important;
+        vertical-align: middle !important;
+      }
+      #dealer-print-form .text-center.w-60 {
+        overflow: visible !important;
+        padding-top: 4px !important;
+      }
+      #dealer-print-form .text-center.w-60 div,
+      #dealer-print-form .text-center.w-60 input {
+        overflow: visible !important;
+        line-height: 1.4 !important;
+        min-height: 22px !important;
+        padding-top: 3px !important;
+        padding-bottom: 2px !important;
       }
     </style>
   </head>
   <body>
     <div id="print-mount-root">
-      ${el.outerHTML}
+      ${printClone.outerHTML}
     </div>
   </body>
 </html>`;

@@ -92,11 +92,22 @@ export const A4PrintPreviewModal: React.FC<A4PrintPreviewModalProps> = ({
       cloned.style.boxSizing = 'border-box';
       cloned.style.padding = '8px 12px';
 
+      cloned.querySelectorAll('table').forEach((tbl) => {
+        const tableEl = tbl as HTMLElement;
+        tableEl.style.borderCollapse = 'collapse';
+        tableEl.style.border = '1px solid #475569';
+        tableEl.style.width = '100%';
+      });
+
       cloned.querySelectorAll('td, th').forEach((cell) => {
-        (cell as HTMLElement).style.paddingTop = '1.5px';
-        (cell as HTMLElement).style.paddingBottom = '1.5px';
-        (cell as HTMLElement).style.lineHeight = '1.2';
-        (cell as HTMLElement).style.fontSize = '11px';
+        const cellEl = cell as HTMLElement;
+        cellEl.style.border = '1px solid #64748b';
+        cellEl.style.display = 'table-cell';
+        cellEl.style.verticalAlign = 'middle';
+        cellEl.style.padding = '2.5px 5px';
+        cellEl.style.boxSizing = 'border-box';
+        cellEl.style.lineHeight = '1.2';
+        cellEl.style.fontSize = '11px';
       });
 
       cloned.querySelectorAll('input, textarea').forEach((inputNode) => {
@@ -148,28 +159,65 @@ export const A4PrintPreviewModal: React.FC<A4PrintPreviewModalProps> = ({
             inp.removeAttribute('checked');
           }
         } else {
-          inp.setAttribute('value', val);
-          (inp as HTMLInputElement).value = val;
           const compColor = window.getComputedStyle(srcNode).color || 'inherit';
-          inp.style.border = 'none';
-          inp.style.background = 'transparent';
-          inp.style.outline = 'none';
-          inp.style.color = compColor !== 'rgba(0, 0, 0, 0)' ? compColor : 'inherit';
-          inp.style.fontWeight = 'bold';
-          inp.style.width = '100%';
+          const div = document.createElement('div');
+          div.className = inp.className;
+          div.classList.remove('leading-none', 'pb-0', 'border-none', 'outline-none');
+          div.style.cssText = inp.style.cssText;
+          div.textContent = val || (srcNode as HTMLInputElement).placeholder || '';
+          div.style.border = 'none';
+          div.style.background = 'transparent';
+          div.style.outline = 'none';
+          div.style.color = compColor !== 'rgba(0, 0, 0, 0)' ? compColor : 'inherit';
+          div.style.fontWeight = inp.classList.contains('font-black') ? '900' : 'bold';
+          div.style.width = '100%';
+          div.style.lineHeight = '1.4';
+          div.style.minHeight = '20px';
+          div.style.paddingTop = '3px';
+          div.style.paddingBottom = '2px';
+          div.style.overflow = 'visible';
+          div.style.boxSizing = 'border-box';
+
+          const isOfficerName = (srcNode as HTMLInputElement).placeholder?.toUpperCase().includes('OFFICER') || 
+                                val.toUpperCase().includes('ROHIT') ||
+                                (srcNode as HTMLInputElement).value?.toUpperCase().includes('ROHIT') ||
+                                inp.parentElement?.classList.contains('w-60');
+
+          if (isOfficerName) {
+            div.style.textAlign = 'center';
+            div.style.textTransform = 'uppercase';
+            div.style.fontWeight = '900';
+            div.style.fontSize = '12px';
+            div.style.letterSpacing = '0.05em';
+            div.style.minHeight = '22px';
+            div.style.paddingTop = '4px';
+            div.style.paddingBottom = '3px';
+            div.style.lineHeight = '1.4';
+            div.style.overflow = 'visible';
+            if (inp.parentElement) {
+              inp.parentElement.style.overflow = 'visible';
+              inp.parentElement.style.paddingTop = '2px';
+            }
+          }
+
+          inp.replaceWith(div);
         }
       } else if (inp.tagName === 'TEXTAREA') {
         const compColor = window.getComputedStyle(srcNode).color || 'inherit';
-        inp.textContent = val;
-        inp.innerHTML = val.replace(/\n/g, '<br/>');
-        inp.style.border = 'none';
-        inp.style.background = 'transparent';
-        inp.style.outline = 'none';
-        inp.style.color = compColor !== 'rgba(0, 0, 0, 0)' ? compColor : 'inherit';
-        inp.style.fontWeight = 'bold';
-        inp.style.whiteSpace = 'pre-wrap';
-        inp.style.wordBreak = 'break-word';
-        inp.style.width = '100%';
+        const div = document.createElement('div');
+        div.className = inp.className;
+        div.style.cssText = inp.style.cssText;
+        div.innerHTML = val.replace(/\n/g, '<br/>');
+        div.style.border = 'none';
+        div.style.background = 'transparent';
+        div.style.outline = 'none';
+        div.style.color = compColor !== 'rgba(0, 0, 0, 0)' ? compColor : 'inherit';
+        div.style.fontWeight = 'bold';
+        div.style.lineHeight = '1.4';
+        div.style.overflow = 'visible';
+        div.style.width = '100%';
+        div.style.padding = '2px 4px';
+        inp.replaceWith(div);
       } else if (inp.tagName === 'SELECT') {
         const sel = srcNode as HTMLSelectElement;
         const compColor = window.getComputedStyle(srcNode).color || 'inherit';
@@ -231,7 +279,7 @@ export const A4PrintPreviewModal: React.FC<A4PrintPreviewModalProps> = ({
     try {
       await exportElementToPDF(elementId, filename || title, {
         orientation: isLandscape ? 'landscape' : 'portrait',
-        scale: 2,
+        scale: 3,
       });
     } catch (err) {
       console.error('PDF download failed:', err);

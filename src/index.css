@@ -306,6 +306,10 @@ input[type="number"] {
     font-weight: bold !important;
     box-shadow: none !important;
     outline: none !important;
+    line-height: 1.5 !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+    overflow: visible !important;
     -webkit-appearance: none !important;
     appearance: none !important;
     -webkit-print-color-adjust: exact !important;
@@ -318,5 +322,45 @@ input[type="number"] {
     height: auto;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Strict nowrap and fixed minimum width for Date columns and Officer signature cells in all printable table views */
+  .date-column,
+  .print-date-cell,
+  input[type="date"],
+  input.date-input,
+  #traveling-expenses-printable td:has(input[value*="/"]),
+  #traveling-expenses-printable .w-56,
+  #traveling-expenses-printable .w-64 {
+    white-space: nowrap !important;
+    min-width: 130px !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  .officer-signature-cell,
+  .officer-name-cell,
+  #dealer-print-form .text-center.w-60,
+  #traveling-expenses-printable .flex-1 {
+    white-space: nowrap !important;
+    min-width: 180px !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    overflow: visible !important;
+  }
+
+  /* Ample vertical space and overflow clearance for Officer Name & Signature in print/PDF */
+  #dealer-print-form .text-center.w-60 {
+    overflow: visible !important;
+    padding-top: 4px !important;
+  }
+
+  #dealer-print-form .text-center.w-60 input,
+  #dealer-print-form .text-center.w-60 div {
+    overflow: visible !important;
+    line-height: 1.4 !important;
+    min-height: 22px !important;
+    padding-top: 3px !important;
+    padding-bottom: 2px !important;
   }
 }

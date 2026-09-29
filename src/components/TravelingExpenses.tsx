@@ -18,6 +18,7 @@ import {
 } from '../utils/travelSheetHelpers';
 import { exportElementToPDF, exportElementToPrintOrPDF, triggerPrint } from '../utils/printHelpers';
 import { A4PrintPreviewModal } from './A4PrintPreviewModal';
+import { BLACKWORM_LOGO_BASE64 } from '../assets/logoBase64';
 
 const getCurrentMonthYear = (): string => {
   const now = new Date();
@@ -27,7 +28,7 @@ const getCurrentMonthYear = (): string => {
 };
 
 export const TravelingExpenses: React.FC = () => {
-  const { language, currentUser, users, showNotification, saveTravelSheet } = useApp();
+  const { language, currentUser, users, showNotification, saveTravelSheet, companyDetails } = useApp();
 
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
@@ -573,62 +574,81 @@ export const TravelingExpenses: React.FC = () => {
       </div>
 
       {/* MAIN SINGLE MONTHLY TRAVEL SHEET (PRINTABLE A4 CONTAINER) */}
-      <div id="traveling-expenses-printable" className="print-area bg-white p-2 sm:p-6 rounded-2xl border-2 border-slate-950 shadow-2xs">
+      <div id="traveling-expenses-printable" className="print-area bg-white p-2 sm:p-5 rounded-2xl border-2 border-slate-950 shadow-2xs w-full box-border max-w-full">
         {/* UNIFIED HORIZONTAL SCROLL CONTAINER FOR MOBILE FULL VIEW */}
-        <div className="overflow-x-auto -mx-1 sm:mx-0 pb-2">
-          <div className="min-w-[760px] sm:min-w-full p-1">
-            {/* COMPANY HEADER */}
-            <div className="text-center mb-2">
-              <h1 className="text-xl sm:text-3xl font-black text-red-600 uppercase tracking-tight font-serif text-center">
-                BLACKWORM AGRITECH PVT LTD
-              </h1>
+        <div className="overflow-x-auto -mx-2 sm:mx-0 pb-3">
+          <div className="min-w-[850px] sm:min-w-full p-1 box-border">
+            {/* COMPANY HEADER WITH OFFICIAL LOGO & LEGAL INFO */}
+            <div className="flex items-center justify-between border-b-2 border-slate-950 pb-3 mb-3">
+              <div className="w-36 shrink-0 flex items-center justify-center p-1 bg-white rounded-xl shadow-xs border border-slate-200">
+                <img
+                  src={companyDetails?.logoUrl || BLACKWORM_LOGO_BASE64}
+                  alt="Blackworm Logo"
+                  className="h-20 sm:h-24 w-auto max-w-[170px] object-contain mix-blend-multiply"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="flex-1 text-center px-2">
+                <h1 className="text-xl sm:text-3xl font-black text-red-600 uppercase tracking-tight font-serif">
+                  {companyDetails?.name || 'BLACKWORM AGRITECH PVT LTD'}
+                </h1>
+                <p className="text-[11px] font-bold text-slate-900 mt-0.5">
+                  CIN: {companyDetails?.cin || 'U01409PN2022PTC217246'} | GST No: {companyDetails?.gstNo || '27AALCB3069J1ZC'}
+                </p>
+                <p className="text-[10px] text-slate-800 mt-0.5">
+                  {companyDetails?.address || 'Gat No. 17 Vijaynagar (Mhaisal), Tal - Miraj, Dist - Sangli. 416409'}
+                </p>
+              </div>
+              <div className="w-36 shrink-0 text-right text-xs font-black text-slate-900">
+                <span>Month: {selectedMonthYear}</span>
+              </div>
             </div>
 
             {/* OFFICER INFORMATION HEADER BOX - CLEAR BOLD TEXT WITHOUT DOTTED LINES */}
-            <div className="border-2 border-slate-950 text-xs sm:text-sm mb-2 font-black bg-slate-50/80 text-slate-950">
+            <div className="border-2 border-slate-950 text-xs sm:text-sm mb-3 font-black bg-slate-50/90 text-slate-950">
               <div className="flex border-b-2 border-slate-950 justify-between">
-                <div className="p-2 px-3 flex-1 border-r-2 border-slate-950 flex items-center gap-1">
+                <div className="p-2.5 px-3 flex-1 border-r-2 border-slate-950 flex items-center gap-1.5">
                   <span className="text-slate-950 font-black whitespace-nowrap">Officer Name :- </span>
                   <input
                     type="text"
                     value={officerName}
                     onChange={(e) => setOfficerName(e.target.value)}
-                    className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1 flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm"
+                    className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1.5 flex-1 text-xs sm:text-sm"
                   />
                 </div>
-                <div className="p-2 px-3 w-52 sm:w-64 flex items-center justify-between gap-1">
+                <div className="p-2.5 px-3 w-56 sm:w-64 flex items-center justify-between gap-1.5">
                   <span className="text-slate-950 font-black whitespace-nowrap">Date :- </span>
                   <input
                     type="text"
                     value={sheetDate}
                     onChange={(e) => setSheetDate(e.target.value)}
-                    className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1 w-28 text-right whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm"
+                    className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1.5 w-32 text-right text-xs sm:text-sm"
                   />
                 </div>
               </div>
-              <div className="p-2 px-3 flex items-center gap-1">
+              <div className="p-2.5 px-3 flex items-center gap-1.5">
                 <span className="text-slate-950 font-black whitespace-nowrap">Designation :- </span>
                 <input
                   type="text"
                   value={designation}
                   onChange={(e) => setDesignation(e.target.value)}
-                  className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1 flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm"
+                  className="font-black text-slate-950 bg-transparent outline-none focus:bg-amber-100/50 px-1.5 flex-1 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
-            {/* MONTHLY TRAVEL SHEET TABLE - NO TEXT OVERFLOW & UNBOXED DIRECT TYPING CELLS */}
-            <table className="print-table w-full text-left text-xs border-collapse border-2 border-slate-950 table-fixed">
+            {/* MONTHLY TRAVEL SHEET TABLE - UNBOXED DIRECT TYPING CELLS & FULL HEADERS */}
+            <table className="print-table w-full text-left text-xs sm:text-sm border-collapse border-2 border-slate-950">
               <thead>
                 <tr className="print-header-row bg-[#d1e7dd] text-slate-950 font-black border-b-2 border-slate-950">
-                  <th className="border-2 border-slate-950 py-1.5 px-1.5 text-center w-[11%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">DATE</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1.5 text-center w-[11%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">DAYS</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-2 text-left w-[35%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">Route</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1.5 text-center w-[11%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">Opening Km</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1.5 text-center w-[11%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">Closing Km</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1 text-center w-[12%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">Other Expenses</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1.5 text-right w-[9%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">Amount</th>
-                  <th className="border-2 border-slate-950 py-1.5 px-1 text-center w-[8%] uppercase font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">KM</th>
+                  <th className="keep-nowrap border-2 border-slate-950 py-2 px-2 text-center w-[12%] uppercase font-black text-slate-950 whitespace-nowrap">DATE</th>
+                  <th className="keep-nowrap border-2 border-slate-950 py-2 px-2 text-center w-[12%] uppercase font-black text-slate-950 whitespace-nowrap">DAYS</th>
+                  <th className="border-2 border-slate-950 py-2 px-3 text-left w-[29%] uppercase font-black text-slate-950">ROUTE</th>
+                  <th className="border-2 border-slate-950 py-2 px-2 text-center w-[10%] uppercase font-black text-slate-950 whitespace-nowrap">OPENING KM</th>
+                  <th className="border-2 border-slate-950 py-2 px-2 text-center w-[10%] uppercase font-black text-slate-950 whitespace-nowrap">CLOSING KM</th>
+                  <th className="border-2 border-slate-950 py-2 px-2 text-center w-[11%] uppercase font-black text-slate-950 whitespace-nowrap">OTHER EXPENSES</th>
+                  <th className="border-2 border-slate-950 py-2 px-2 text-center w-[9%] uppercase font-black text-slate-950 whitespace-nowrap">AMOUNT</th>
+                  <th className="border-2 border-slate-950 py-2 px-2 text-center w-[7%] uppercase font-black text-slate-950 whitespace-nowrap">KM</th>
                 </tr>
               </thead>
               <tbody className="divide-y-2 divide-slate-950 font-black text-slate-950">
@@ -637,62 +657,62 @@ export const TravelingExpenses: React.FC = () => {
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-slate-950 hover:bg-amber-50/60 transition-colors ${
-                        isSunday ? 'bg-emerald-50/70 font-black' : ''
+                      className={`border-b border-slate-950 transition-colors ${
+                        isSunday ? 'bg-amber-100/70 font-black' : 'bg-white font-black'
                       }`}
                     >
-                      <td className="border border-slate-950 py-1 px-1 text-center font-mono text-xs sm:text-sm font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <td className="keep-nowrap border border-slate-950 py-1.5 px-2 text-center font-mono text-xs sm:text-sm font-black text-slate-950 whitespace-nowrap">
                         {row.dateStr}
                       </td>
-                      <td className="border border-slate-950 py-1 px-1 text-center text-xs sm:text-sm capitalize font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <td className="keep-nowrap border border-slate-950 py-1.5 px-2 text-center text-xs sm:text-sm capitalize font-black text-slate-950 whitespace-nowrap">
                         {row.dayName}
                       </td>
-                      <td className="border border-slate-950 p-0 overflow-hidden">
+                      <td className="border border-slate-950 p-0 bg-transparent">
                         <input
                           type="text"
                           value={row.route}
                           onChange={(e) => handleRouteInput(row.id, row.route, e.target.value)}
                           placeholder="Route..."
-                          className="print-input w-full px-1.5 py-1 text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 placeholder:text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis"
+                          className="print-input w-full px-2 py-1.5 text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 placeholder:text-slate-400"
                         />
                       </td>
-                      <td className="border border-slate-950 p-0 text-center font-mono overflow-hidden">
+                      <td className="border border-slate-950 p-0 text-center font-mono bg-transparent">
                         <input
                           type="number"
                           value={row.openingKm || ''}
                           onChange={(e) => handleRowChange(row.id, 'openingKm', e.target.value)}
-                          placeholder="0"
-                          className="print-input w-full text-center px-1 py-1 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis"
+                          placeholder=""
+                          className="print-input w-full text-center px-1 py-1.5 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950"
                         />
                       </td>
-                      <td className="border border-slate-950 p-0 text-center font-mono overflow-hidden">
+                      <td className="border border-slate-950 p-0 text-center font-mono bg-transparent">
                         <input
                           type="number"
                           value={row.closingKm || ''}
                           onChange={(e) => handleRowChange(row.id, 'closingKm', e.target.value)}
-                          placeholder="0"
-                          className="print-input w-full text-center px-1 py-1 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis"
+                          placeholder=""
+                          className="print-input w-full text-center px-1 py-1.5 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950"
                         />
                       </td>
-                      <td className="border border-slate-950 p-0 text-center font-mono overflow-hidden">
+                      <td className="border border-slate-950 p-0 text-center font-mono bg-transparent">
                         <input
                           type="text"
                           value={row.otherExpensesNote}
                           onChange={(e) => handleRowChange(row.id, 'otherExpensesNote', e.target.value)}
-                          placeholder="खर्च/Note..."
-                          className="print-input w-full text-center px-1 py-1 text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 placeholder:text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis"
+                          placeholder=""
+                          className="print-input w-full text-center px-1 py-1.5 text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 placeholder:text-slate-400"
                         />
                       </td>
-                      <td className="border border-slate-950 p-0 text-right font-mono overflow-hidden">
+                      <td className="border border-slate-950 p-0 text-center font-mono bg-transparent">
                         <input
                           type="number"
                           value={row.amount || ''}
                           onChange={(e) => handleRowChange(row.id, 'amount', Number(e.target.value))}
-                          placeholder="0"
-                          className="print-input w-full text-right px-1 py-1 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis"
+                          placeholder=""
+                          className="print-input w-full text-center px-1 py-1.5 font-mono text-xs sm:text-sm bg-transparent border-none outline-none focus:outline-none focus:bg-amber-100/60 font-black text-slate-950"
                         />
                       </td>
-                      <td className="border border-slate-950 py-1 px-1 text-center font-mono text-xs sm:text-sm font-black text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <td className="border border-slate-950 py-1.5 px-2 text-center font-mono text-xs sm:text-sm font-black text-slate-950 whitespace-nowrap">
                         {row.km > 0 ? row.km : 0}
                       </td>
                     </tr>
@@ -701,54 +721,54 @@ export const TravelingExpenses: React.FC = () => {
 
                 {/* Subtotal Green Row */}
                 <tr className="print-subtotal-row bg-[#81c784] font-black text-xs sm:text-sm border-t-2 border-slate-950 text-slate-950">
-                  <td colSpan={3} className="border-2 border-slate-950 py-1.5 px-2 text-right uppercase font-black whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td colSpan={3} className="border-2 border-slate-950 py-2 px-3 text-right uppercase font-black whitespace-nowrap">
                     Subtotal:
                   </td>
-                  <td className="border-2 border-slate-950 py-1.5 px-1.5 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2 px-2 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap">
                     {minOpeningKm > 0 ? minOpeningKm : '-'}
                   </td>
-                  <td className="border-2 border-slate-950 py-1.5 px-1.5 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2 px-2 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap">
                     {maxClosingKm > 0 ? maxClosingKm : '-'}
                   </td>
-                  <td className="border-2 border-slate-950 py-1.5 px-1 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     {totalOtherExpenses > 0 ? `₹${totalOtherExpenses.toLocaleString('en-IN')}` : '-'}
                   </td>
-                  <td className="border-2 border-slate-950 py-1.5 px-1.5 text-right font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     ₹{totalTravelAmount.toLocaleString('en-IN')}
                   </td>
-                  <td className="border-2 border-slate-950 py-1.5 px-1 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2 px-2 text-center font-mono font-black text-xs sm:text-sm whitespace-nowrap">
                     {totalKm}
                   </td>
                 </tr>
 
                 {/* AVERAGE COST PER KM BREAKDOWN ROW */}
                 <tr className="border-t-2 border-slate-950 font-black text-xs sm:text-sm bg-amber-50">
-                  <td colSpan={5} className="border-2 border-slate-950 py-2 px-2 text-right uppercase text-slate-950 font-black whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td colSpan={5} className="border-2 border-slate-950 py-2.5 px-3 text-right uppercase text-slate-950 font-black whitespace-nowrap">
                     AVERAGE COST PER KM
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1.5 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     ₹{grandTotalExpenses} ÷ {totalKm} KM
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1.5 text-right font-mono font-black text-red-700 text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-red-700 text-sm sm:text-base whitespace-nowrap">
                     ₹{avgAmountPerKm.toFixed(2)}
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     / KM
                   </td>
                 </tr>
 
                 {/* TOTAL EXPENSES AMOUNT ROW */}
                 <tr className="border-t-2 border-slate-950 font-black text-xs sm:text-sm bg-emerald-100">
-                  <td colSpan={5} className="border-2 border-slate-950 py-2 px-2 text-right uppercase text-slate-950 font-black whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td colSpan={5} className="border-2 border-slate-950 py-2.5 px-3 text-right uppercase text-slate-950 font-black whitespace-nowrap">
                     TOTAL EXPENSES AMOUNT
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1.5 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     ₹{totalTravelAmount} + ₹{totalOtherExpenses}
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1.5 text-right font-mono font-black text-emerald-950 text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-emerald-950 text-base sm:text-lg whitespace-nowrap">
                     ₹{grandTotalExpenses.toLocaleString('en-IN')}
                   </td>
-                  <td className="border-2 border-slate-950 py-2 px-1 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <td className="border-2 border-slate-950 py-2.5 px-2 text-center font-mono font-black text-xs sm:text-sm text-slate-950 whitespace-nowrap">
                     TOTAL ₹
                   </td>
                 </tr>

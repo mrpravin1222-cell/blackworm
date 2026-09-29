@@ -557,6 +557,7 @@ export const DealerApplicationForm: React.FC = () => {
 
     try {
       await exportElementToPDF('dealer-print-form', fileName, {
+        scale: 3,
         onComplete: () => setIsDownloading(false),
         onError: () => setIsDownloading(false),
       });
