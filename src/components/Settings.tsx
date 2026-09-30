@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BLACKWORM_LOGO_BASE64, BLACKWORM_USER_UPLOADED_LOGO_BASE64 } from '../assets/logoBase64';
-import { ALL_NAV_MODULES } from '../utils/permissionHelpers';
 import { NavTab } from '../types';
 import {
   Building2,
@@ -14,7 +13,6 @@ import {
   RotateCcw,
   User as UserIcon,
   ShieldCheck,
-  Shield,
   Lock,
   Heart,
   Briefcase,
@@ -45,10 +43,6 @@ export const Settings: React.FC = () => {
   } = useApp();
 
   const isAdmin = currentUser?.role === 'admin';
-
-  // Admin module permission manager state
-  const [selectedUserForPerms, setSelectedUserForPerms] = useState<string>('');
-  const [allowedModulesForm, setAllowedModulesForm] = useState<NavTab[]>(ALL_NAV_MODULES.map(m => m.id));
 
   // Admin company forms
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,6 +93,37 @@ export const Settings: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  // Single-click consolidated bank details copy: Company Name -> Bank Name -> Account No -> IFSC Code
+  const handleCopyFullBankDetails = () => {
+    const companyName = companyDetails.bankDetails?.accountHolder || companyDetails.name || 'Blackworm Agritech Pvt Ltd';
+    const bankName = companyDetails.bankDetails?.bankName || 'Rajarambapu Sahakari Bank Limited, Miraj';
+    const accountNo = companyDetails.bankDetails?.accountNo || '035330268109560';
+    const ifsc = companyDetails.bankDetails?.ifsc || 'RRBP0000035';
+
+    const fullBankText = `कंपनीचे नाव: ${companyName}\nबँकेचे नाव: ${bankName}\nखाते क्रमांक: ${accountNo}\nIFSC Code: ${ifsc}`;
+    handleCopy(fullBankText, 'full_bank');
+  };
+
+  // Handle direct auto-save for company profile fields
+  const handleCompanyFieldChange = (field: keyof typeof companyForm, value: any) => {
+    const updated = { ...companyForm, [field]: value };
+    setCompanyForm(updated);
+    updateCompanyDetails({
+      ...updated,
+      bankDetails: bankForm,
+    });
+  };
+
+  // Handle direct auto-save for bank detail fields
+  const handleBankFieldChange = (field: keyof typeof bankForm, value: any) => {
+    const updatedBank = { ...bankForm, [field]: value };
+    setBankForm(updatedBank);
+    updateCompanyDetails({
+      ...companyForm,
+      bankDetails: updatedBank,
+    });
+  };
+
   // Admin Logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -112,32 +137,14 @@ export const Settings: React.FC = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      setCompanyForm((prev) => ({ ...prev, logoUrl: base64 }));
+      const updated = { ...companyForm, logoUrl: base64 };
+      setCompanyForm(updated);
       updateCompanyDetails({
-        ...companyForm,
-        logoUrl: base64,
+        ...updated,
         bankDetails: bankForm,
-      });
+      }, true);
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleResetDefaultLogo = () => {
-    const defaultLogo = BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64;
-    setCompanyForm((prev) => ({ ...prev, logoUrl: defaultLogo }));
-    updateCompanyDetails({
-      ...companyForm,
-      logoUrl: defaultLogo,
-      bankDetails: bankForm,
-    });
-  };
-
-  const handleSaveCompany = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateCompanyDetails({
-      ...companyForm,
-      bankDetails: bankForm,
-    });
   };
 
   const handleSaveUserProfile = (e: React.FormEvent) => {
@@ -198,9 +205,6 @@ export const Settings: React.FC = () => {
                   <h2 className="text-sm font-bold text-slate-900">
                     {language === 'mr' ? 'माझी वैयक्तिक माहिती (Personal Profile)' : 'My Personal Profile'}
                   </h2>
-                  <p className="text-[11px] text-slate-500">
-                    {language === 'mr' ? 'तुमचे नाव, संपर्क क्रमांक, पत्ता आणि पासवर्ड अपडेट करा.' : 'Update your personal contact details, residential address, and login password.'}
-                  </p>
                 </div>
               </div>
 
@@ -411,12 +415,32 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                    <span className="font-bold text-slate-600 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-red-600" />
-                      {language === 'mr' ? 'नोंदणीकृत पत्ता:' : 'Registered Address:'}
-                    </span>
-                    <p className="font-semibold text-slate-900 pl-4.5 leading-relaxed">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-600 flex items-center gap-1.5 text-xs">
+                        <MapPin className="w-4 h-4 text-red-600" />
+                        {language === 'mr' ? 'नोंदणीकृत पत्ता:' : 'Registered Address:'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(companyDetails.address, 'address')}
+                        className="px-2.5 py-1 bg-white border border-slate-300 hover:border-red-500 hover:text-red-600 text-slate-700 rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                        title={language === 'mr' ? 'संपूर्ण पत्ता कॉपी करा' : 'Copy Full Address'}
+                      >
+                        {copiedKey === 'address' ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-700 font-bold">{language === 'mr' ? 'पत्ता कॉपी झाला' : 'Address Copied'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>{language === 'mr' ? 'पत्ता कॉपी करा' : 'Copy Address'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="font-semibold text-slate-900 pl-5 leading-relaxed text-xs">
                       {companyDetails.address}
                     </p>
                   </div>
@@ -457,79 +481,66 @@ export const Settings: React.FC = () => {
 
               {/* Right Column: Official Bank Account Details */}
               <div className="space-y-4 pt-4 md:pt-0 pl-0 md:pl-6">
-                <h4 className="text-xs font-black uppercase text-emerald-700 tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-100">
-                  <Landmark className="w-4 h-4 text-emerald-600" />
-                  <span>{language === 'mr' ? 'अधिकृत बँक खाते तपशील' : 'Official Bank Details'}</span>
-                </h4>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 gap-2 flex-wrap">
+                  <h4 className="text-xs font-black uppercase text-emerald-700 tracking-wider flex items-center gap-1.5">
+                    <Landmark className="w-4 h-4 text-emerald-600" />
+                    <span>{language === 'mr' ? 'अधिकृत बँक खाते तपशील' : 'Official Bank Details'}</span>
+                  </h4>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyFullBankDetails}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
+                    title={language === 'mr' ? 'सर्व बँक तपशील एका क्लिकमध्ये कॉपी करा' : 'Copy All Bank Details in 1-Click'}
+                  >
+                    {copiedKey === 'full_bank' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>{language === 'mr' ? 'सर्व बँक तपशील कॉपी झाले!' : 'Bank Details Copied!'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{language === 'mr' ? 'बँक डिटेल्स कॉपी करा' : 'Copy Bank Details'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 <div className="space-y-2.5">
+                  {/* 1. Company / Account Holder Name */}
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '१. कंपनीचे नाव (खातेधारक)' : '1. Company Name (Account Holder)'}</span>
+                      <span className="font-bold text-slate-900 text-xs">
+                        {companyDetails.bankDetails?.accountHolder || companyDetails.name || 'Blackworm Agritech Pvt Ltd'}
+                      </span>
+                    </div>
+                    <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                  </div>
+
+                  {/* 2. Bank Name */}
                   <div className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-0.5">
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">{language === 'mr' ? 'बँकेचे नाव' : 'Bank Name'}</span>
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">{language === 'mr' ? '२. बँकेचे नाव' : '2. Bank Name'}</span>
                     <p className="font-black text-slate-900 text-xs">
                       {companyDetails.bankDetails?.bankName || 'Rajarambapu Sahakari Bank Limited, Miraj'}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? 'खाते क्रमांक (A/C No)' : 'Account Number'}</span>
-                      <span className="font-mono font-black text-slate-900 text-sm tracking-wider">
-                        {companyDetails.bankDetails?.accountNo || '035330268109560'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(companyDetails.bankDetails?.accountNo, 'acct')}
-                      className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-[11px] hover:border-red-500 hover:text-red-600 flex items-center gap-1 shadow-2xs transition-all"
-                    >
-                      {copiedKey === 'acct' ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700 font-bold">{language === 'mr' ? 'कॉपी झाले' : 'Copied'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>{language === 'mr' ? 'कॉपी करा' : 'Copy'}</span>
-                        </>
-                      )}
-                    </button>
+                  {/* 3. Account Number */}
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '३. खाते क्रमांक (A/C No)' : '3. Account Number'}</span>
+                    <span className="font-mono font-black text-slate-900 text-sm tracking-wider">
+                      {companyDetails.bankDetails?.accountNo || '035330268109560'}
+                    </span>
                   </div>
 
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">IFSC Code</span>
-                      <span className="font-mono font-black text-slate-900 text-xs uppercase tracking-wider">
-                        {companyDetails.bankDetails?.ifsc || 'RRBP0000035'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(companyDetails.bankDetails?.ifsc, 'ifsc')}
-                      className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-[11px] hover:border-red-500 hover:text-red-600 flex items-center gap-1 shadow-2xs transition-all"
-                    >
-                      {copiedKey === 'ifsc' ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700 font-bold">{language === 'mr' ? 'कॉपी झाले' : 'Copied'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>{language === 'mr' ? 'कॉपी करा' : 'Copy'}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? 'खातेधारक नाव' : 'Account Holder'}</span>
-                      <span className="font-bold text-slate-900">
-                        {companyDetails.bankDetails?.accountHolder || 'Blackworm Agritech Pvt Ltd'}
-                      </span>
-                    </div>
-                    <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                  {/* 4. IFSC Code */}
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '४. IFSC Code' : '4. IFSC Code'}</span>
+                    <span className="font-mono font-black text-slate-900 text-xs uppercase tracking-wider">
+                      {companyDetails.bankDetails?.ifsc || 'RRBP0000035'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -539,49 +550,52 @@ export const Settings: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* SCENARIO 2: ADMIN LOGGED IN (Full Management & Editable Forms)           */}
+      {/* SCENARIO 2: ADMIN LOGGED IN (Full Management & Auto-Saved Editable Forms)  */}
       {/* ========================================================================= */}
       {isAdmin && (
-        <form onSubmit={handleSaveCompany} className="space-y-6">
-          {/* Section 0: Official Company Logo Setting */}
+        <div className="space-y-6">
+          {/* Section 1: Legal Company Profile with Small Side Logo Upload */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-red-600" />
-                <span>{language === 'mr' ? 'कंपनी अधिकृत लोगो (Official Logo)' : 'Official Company Logo'}</span>
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-5 pt-1">
-              {/* Logo Live Preview */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <div 
-                className="relative w-44 h-28 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-2 flex items-center justify-center shrink-0 shadow-2xs cursor-pointer group hover:border-red-500 hover:bg-red-50 transition-all overflow-hidden"
-                onClick={() => fileInputRef.current?.click()}
-                title={language === 'mr' ? 'लोगो बदलण्यासाठी क्लिक करा' : 'Click to change logo'}
-              >
-                <img
-                  src={companyForm.logoUrl || BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64}
-                  alt="Company Logo Preview"
-                  className="max-h-full max-w-full object-contain select-none group-hover:scale-105 transition-transform mix-blend-multiply"
-                />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100 shrink-0">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    {language === 'mr' ? 'कंपनी प्रोफाइल व पत्ता (Company Profile)' : 'Company Profile & Registration'}
+                  </h2>
+                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{language === 'mr' ? 'माहिती भरताच आपोआप सेव्ह होते (Auto-saved)' : 'Changes save automatically'}</span>
+                  </p>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Section 1: Legal Company Profile */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-red-600" />
-                <span>{language === 'mr' ? 'कंपनी प्रोफाइल व पत्ता (Company Profile)' : 'Company Profile & Registration'}</span>
-              </h2>
+              {/* Compact Logo Upload Box on the Side */}
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  title={language === 'mr' ? 'कंपनी लोगो बदलण्यासाठी येथे क्लिक करा' : 'Click here to upload/change logo'}
+                  className="relative w-16 h-12 sm:w-20 sm:h-14 rounded-xl border-2 border-dashed border-red-300 hover:border-red-500 bg-slate-50 hover:bg-red-50/40 p-1 flex items-center justify-center shrink-0 cursor-pointer group transition-all shadow-2xs overflow-hidden"
+                >
+                  <img
+                    src={companyForm.logoUrl || BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64}
+                    alt="Logo"
+                    className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform select-none"
+                  />
+                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity text-white">
+                    <Upload className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
@@ -589,11 +603,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'कंपनीचे नाव (Company Name)' : 'Company Name'}</label>
                 <input
                   type="text"
-                  required
                   value={companyForm.name}
-                  onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('name', e.target.value)}
                   placeholder="Blackworm Agritech Pvt Ltd"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden font-bold bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-bold bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -602,9 +615,9 @@ export const Settings: React.FC = () => {
                 <input
                   type="text"
                   value={companyForm.tagline}
-                  onChange={(e) => setCompanyForm({ ...companyForm, tagline: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('tagline', e.target.value)}
                   placeholder="Agriculture with new perspective"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden italic bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden italic bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -612,11 +625,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">CIN Number</label>
                 <input
                   type="text"
-                  required
                   value={companyForm.cin}
-                  onChange={(e) => setCompanyForm({ ...companyForm, cin: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('cin', e.target.value)}
                   placeholder="U01409PN2022PTC217246"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden font-mono font-semibold bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono font-semibold bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -624,11 +636,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">GST Number</label>
                 <input
                   type="text"
-                  required
                   value={companyForm.gstNo}
-                  onChange={(e) => setCompanyForm({ ...companyForm, gstNo: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('gstNo', e.target.value.toUpperCase())}
                   placeholder="27AALCB3069J1ZC"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden font-mono font-semibold uppercase bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono font-semibold uppercase bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -636,11 +647,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'नोंदणीकृत पत्ता (Registered Address)' : 'Registered Address'}</label>
                 <input
                   type="text"
-                  required
                   value={companyForm.address}
-                  onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('address', e.target.value)}
                   placeholder="Gat No. 17 Vijaynagar (Mhaisal), Tal - Miraj, Dist - Sangli. 416409."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -648,11 +658,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'संपर्क फोन (Phone)' : 'Phone Number'}</label>
                 <input
                   type="text"
-                  required
                   value={companyForm.phone}
-                  onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('phone', e.target.value)}
                   placeholder="+91 7798716201"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden font-mono bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -660,33 +669,32 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'ईमेल (Email Address)' : 'Email Address'}</label>
                 <input
                   type="email"
-                  required
                   value={companyForm.email}
-                  onChange={(e) => setCompanyForm({ ...companyForm, email: e.target.value })}
+                  onChange={(e) => handleCompanyFieldChange('email', e.target.value)}
                   placeholder="blackwormagritechpvtltd@gmail.com"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:outline-hidden bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50 transition-colors"
                 />
               </div>
             </div>
-            
-            <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all active:scale-95 cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>{language === 'mr' ? 'कंपनी प्रोफाइल सेव्ह करा' : 'Save Company Profile'}</span>
-              </button>
-            </div>
           </div>
 
-          {/* Section 2: Official Bank Account Details */}
+          {/* Section 2: Official Bank Account Details (Auto-Saved) */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Landmark className="w-4 h-4 text-emerald-600" />
-                <span>{language === 'mr' ? 'अधिकृत बँक खाते माहिती (Bank Details)' : 'Official Bank Account Details'}</span>
-              </h2>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0">
+                  <Landmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    {language === 'mr' ? 'अधिकृत बँक खाते माहिती (Bank Details)' : 'Official Bank Account Details'}
+                  </h2>
+                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{language === 'mr' ? 'माहिती भरताच आपोआप सेव्ह होते (Auto-saved)' : 'Changes save automatically'}</span>
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
@@ -694,11 +702,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'बँकेचे नाव (Bank Name)' : 'Bank Name'}</label>
                 <input
                   type="text"
-                  required
                   value={bankForm.bankName}
-                  onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                  onChange={(e) => handleBankFieldChange('bankName', e.target.value)}
                   placeholder="Rajarambapu Sahakari Bank Limited, Miraj"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:outline-hidden font-bold bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-bold bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -706,11 +713,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'खाते क्रमांक (Account Number)' : 'Account Number'}</label>
                 <input
                   type="text"
-                  required
                   value={bankForm.accountNo}
-                  onChange={(e) => setBankForm({ ...bankForm, accountNo: e.target.value })}
+                  onChange={(e) => handleBankFieldChange('accountNo', e.target.value)}
                   placeholder="035330268109560"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:outline-hidden font-mono font-bold tracking-wider bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-mono font-bold tracking-wider bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -718,11 +724,10 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">IFSC Code</label>
                 <input
                   type="text"
-                  required
                   value={bankForm.ifsc}
-                  onChange={(e) => setBankForm({ ...bankForm, ifsc: e.target.value.toUpperCase() })}
+                  onChange={(e) => handleBankFieldChange('ifsc', e.target.value.toUpperCase())}
                   placeholder="RRBP0000035"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:outline-hidden font-mono font-bold uppercase tracking-wider bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-mono font-bold uppercase tracking-wider bg-slate-50 transition-colors"
                 />
               </div>
 
@@ -730,151 +735,15 @@ export const Settings: React.FC = () => {
                 <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'खातेधारक नाव (Account Holder Name)' : 'Account Holder Name'}</label>
                 <input
                   type="text"
-                  required
                   value={bankForm.accountHolder}
-                  onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })}
+                  onChange={(e) => handleBankFieldChange('accountHolder', e.target.value)}
                   placeholder="Blackworm Agritech Pvt Ltd"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:outline-hidden font-semibold bg-slate-50"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-semibold bg-slate-50 transition-colors"
                 />
               </div>
             </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                <span>{language === 'mr' ? 'बँक माहिती सेव्ह करा' : 'Save Bank Details'}</span>
-              </button>
-            </div>
           </div>
-
-          {/* Section 3: Admin Module & Feature Access Control for System Users */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Shield className="w-4.5 h-4.5 text-red-600" />
-                  <span>{language === 'mr' ? 'युजर ॲक्सेस व परवानग्या सेटिंग (User Module & Access Control)' : 'User Option & Module Access Control'}</span>
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  {language === 'mr' ? 'युजर निवडा आणि त्यांना ॲपमधील कोणकोणते ऑपशन्स सुरु/बंद करायचे ते ठरवा:' : 'Select any user and configure which app options/modules they can use:'}
-                </p>
-              </div>
-
-              {selectedUserForPerms && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setAllowedModulesForm(ALL_NAV_MODULES.map(m => m.id))}
-                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
-                  >
-                    {language === 'mr' ? 'सर्व निवडा' : 'Select All'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAllowedModulesForm(['dashboard'])}
-                    className="px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
-                  >
-                    {language === 'mr' ? 'सर्व काढा' : 'Clear All'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {/* Select User Dropdown */}
-              <div className="max-w-md">
-                <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                  {language === 'mr' ? 'युजर निवडा (Select User)' : 'Select User to Configure Permissions'}
-                </label>
-                <select
-                  value={selectedUserForPerms}
-                  onChange={(e) => {
-                    const uId = e.target.value;
-                    setSelectedUserForPerms(uId);
-                    const targetUser = users.find(u => u.id === uId || u.loginId === uId);
-                    if (targetUser) {
-                      setAllowedModulesForm(targetUser.allowedTabs && targetUser.allowedTabs.length > 0 ? targetUser.allowedTabs : ALL_NAV_MODULES.map(m => m.id));
-                    }
-                  }}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 outline-none focus:border-red-500"
-                >
-                  <option value="">{language === 'mr' ? '-- परवानग्या सेट करण्यासाठी युजर निवडा --' : '-- Select User to Manage Permissions --'}</option>
-                  {users.map((u) => (
-                    <option key={`perm-user-${u.id}`} value={u.id}>
-                      👤 {u.fullName || u.name} ({u.role}) - ID: {u.loginId}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedUserForPerms ? (
-                <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                    {ALL_NAV_MODULES.map((mod) => {
-                      const isChecked = allowedModulesForm.includes(mod.id);
-                      return (
-                        <label
-                          key={`settings-perm-${mod.id}`}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                            isChecked
-                              ? 'bg-white border-emerald-500 shadow-2xs text-slate-900 font-bold'
-                              : 'bg-white/60 border-slate-200 text-slate-400 font-medium'
-                          }`}
-                        >
-                          <span className="text-xs flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                setAllowedModulesForm(prev => 
-                                  prev.includes(mod.id)
-                                    ? prev.filter(t => t !== mod.id)
-                                    : [...prev, mod.id]
-                                );
-                              }}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                            />
-                            <span>{language === 'mr' ? mod.labelMr : mod.labelEn}</span>
-                          </span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${isChecked ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}`}>
-                            {isChecked ? (language === 'mr' ? 'ॲलोव्ड' : 'Allowed') : (language === 'mr' ? 'ब्लॉक' : 'Blocked')}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedUserForPerms) return;
-                        updateUser(selectedUserForPerms, { allowedTabs: allowedModulesForm });
-                        showNotification(
-                          language === 'mr' 
-                            ? 'युजर ऑपशन ॲक्सेस परवानग्या यशस्वीरित्या अद्ययावत झाल्या!' 
-                            : 'User module access permissions saved successfully!',
-                          'success'
-                        );
-                      }}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all active:scale-95 cursor-pointer"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>{language === 'mr' ? 'युजर परवानग्या सेव्ह करा' : 'Save User Permissions'}</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-500 font-semibold">
-                  {language === 'mr' ? '💡 वरील ड्रॉपडाऊनमधून कोणत्याही युजरला निवडा आणि त्यांना द्यायच्या ऑपशन्सच्या टिक-मार्क सेव्ह करा.' : '💡 Select a user from the dropdown above to manage and save their module access permissions.'}
-                </div>
-              )}
-            </div>
-          </div>
-        </form>
+        </div>
       )}
     </div>
   );

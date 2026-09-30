@@ -59,11 +59,11 @@ export const Header: React.FC = React.memo(() => {
     { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
     { id: 'order-collection', labelMr: 'ऑर्डर आणि कलेक्शन', labelEn: 'Order & Collection', icon: Receipt, hasUpdate: true },
     { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
-    { id: 'dealer-form', labelMr: 'डीलर ॲप्लिकेशन', labelEn: 'Dealer Portal', icon: Users, badge: pendingDealersCount, hasUpdate: true },
-    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग एक्सपेन्सेस', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
+    { id: 'dealer-form', labelMr: 'डीलर', labelEn: 'Dealer', icon: Users, badge: pendingDealersCount, hasUpdate: true },
+    { id: 'travel-expenses', labelMr: 'ट्रॅव्हल', labelEn: 'Travel', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
     { id: 'scheme', labelMr: 'स्कीम', labelEn: 'Scheme', icon: Gift },
-    { id: 'reporting', labelMr: 'रिपोर्टिंग', labelEn: 'Reports & Analytics', icon: BarChart3, hasUpdate: true },
-    { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Settings', icon: Settings },
+    { id: 'reporting', labelMr: 'रिपोर्ट', labelEn: 'Report', icon: BarChart3, hasUpdate: true },
+    { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Setting', icon: Settings },
   ];
 
   const allowedNavItems = navItems.filter((item) => isTabAllowedForUser(item.id, currentUser));

@@ -56,9 +56,14 @@ export const OrderCollection: React.FC = React.memo(() => {
   // Check if current user is admin
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
+    currentUser.loginId === 'admin' ||
+    currentUser.loginId === 'pravin' ||
+    currentUser.id === 'USR-001' ||
+    currentUser.id === 'USR-PRAVIN' ||
     (currentUser.name || currentUser.fullName || '').toLowerCase().includes('pravin') || 
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shinde') || 
-    currentUser.id === 'USR-001'
+    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shinde') ||
+    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shreedhar') ||
+    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shridhar')
   ) : false;
 
   // Visible orders based on officer role
@@ -66,9 +71,10 @@ export const OrderCollection: React.FC = React.memo(() => {
     if (!currentUser) return [];
     if (isAdmin) return dealerOrders;
     const currentName = (currentUser.fullName || currentUser.name || '').toLowerCase();
+    const currentId = currentUser.id;
     return dealerOrders.filter((o) => {
       const officer = (o.officerName || '').toLowerCase();
-      return !officer || officer.includes(currentName) || currentName.includes(officer);
+      return !officer || officer.includes(currentName) || currentName.includes(officer) || (o as any).officerId === currentId || (o as any).userId === currentId;
     });
   }, [isAdmin, dealerOrders, currentUser]);
 
@@ -77,9 +83,10 @@ export const OrderCollection: React.FC = React.memo(() => {
     if (!currentUser) return [];
     if (isAdmin) return dealerCollections;
     const currentName = (currentUser.fullName || currentUser.name || '').toLowerCase();
+    const currentId = currentUser.id;
     return dealerCollections.filter((c) => {
       const officer = (c.officerName || '').toLowerCase();
-      return !officer || officer.includes(currentName) || currentName.includes(officer);
+      return !officer || officer.includes(currentName) || currentName.includes(officer) || (c as any).officerId === currentId || (c as any).userId === currentId;
     });
   }, [isAdmin, dealerCollections, currentUser]);
 

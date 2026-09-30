@@ -146,14 +146,16 @@ export const DailyActivityLog: React.FC = React.memo(() => {
       currentUser.loginId === 'admin' ||
       currentUser.loginId === 'pravin' ||
       currentUser.id === 'USR-001' ||
-      currentUser.id === 'USR-PRAVIN'
+      currentUser.id === 'USR-PRAVIN' ||
+      (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('pravin') || currentUser.fullName.toLowerCase().includes('shinde') || currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('shridhar'))) ||
+      (currentUser.name && (currentUser.name.toLowerCase().includes('pravin') || currentUser.name.toLowerCase().includes('shinde') || currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('shridhar')))
     : false;
 
-  // Filter states
+  // Filter states - Default to 'all' so entries from all devices and dates are immediately visible
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dateFilterMode, setDateFilterMode] = useState<'today' | 'week' | 'all' | 'custom'>('today');
+  const [dateFilterMode, setDateFilterMode] = useState<'today' | 'week' | 'all' | 'custom'>('all');
   const [selectedOfficerId, setSelectedOfficerId] = useState<string>(() => {
-    return isAdmin ? 'ALL' : currentUser?.id || 'USR-PRAVIN';
+    return isAdmin ? 'ALL' : currentUser?.id || 'ALL';
   });
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');

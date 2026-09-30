@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { db, doc, onSnapshot, setDoc } from '../firebase';
 import {
   CompanyDetails,
   PriceListItem,
@@ -54,7 +55,7 @@ interface AppContextType {
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
   companyDetails: CompanyDetails;
-  updateCompanyDetails: (details: Partial<CompanyDetails>) => void;
+  updateCompanyDetails: (details: Partial<CompanyDetails>, notify?: boolean) => void;
   priceList: PriceListItem[];
   addPriceItem: (item: Omit<PriceListItem, 'id'>) => void;
   updatePriceItem: (id: string, item: Partial<PriceListItem>) => void;
@@ -491,18 +492,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeSetItem(STORAGE_KEYS.LANG, lang);
   }, [safeSetItem]);
 
-  // Broadcast helper
+  // Broadcast helper with immediate Firebase Firestore & backend network sync
   const broadcastSync = useCallback((type: string, data: any) => {
     const timestamp = new Date().toISOString();
     setLastSyncTimestamp(timestamp);
+    const nextVer = (lastKnownVersionRef.current || 1) + 1;
+    lastKnownVersionRef.current = nextVer;
 
-    // Post to centralized backend
+    const firestorePayload: any = {
+      version: nextVer,
+      lastUpdated: timestamp,
+      sender: clientId,
+      type,
+      ...data,
+    };
+
+    // 1. Sync to Firebase Firestore real-time database (instant cross-device propagation)
+    try {
+      setDoc(doc(db, 'app', 'globalData'), firestorePayload, { merge: true }).catch((err) => {
+        console.warn('Firestore real-time sync write error:', err);
+      });
+    } catch (e) {
+      console.warn('Firestore setDoc exception:', e);
+    }
+
+    // 2. Post to centralized Express backend
     fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, data, sender: clientId }),
     }).catch((err) => console.warn('Sync post error:', err));
   }, [clientId]);
+
+  // Debounced broadcast queue for high-frequency input mutations (debounced network sync with 0ms optimistic UI)
+  const syncDebounceTimerRef = useRef<any>(null);
+  const pendingSyncQueueRef = useRef<{ type: string; data: any }[]>([]);
+
+  const debouncedBroadcastSync = useCallback((type: string, data: any, delayMs: number = 250) => {
+    pendingSyncQueueRef.current.push({ type, data });
+    clearTimeout(syncDebounceTimerRef.current);
+
+    syncDebounceTimerRef.current = setTimeout(() => {
+      if (pendingSyncQueueRef.current.length === 0) return;
+      const mergedData: any = {};
+      pendingSyncQueueRef.current.forEach(item => {
+        Object.assign(mergedData, item.data);
+      });
+      const lastType = pendingSyncQueueRef.current[pendingSyncQueueRef.current.length - 1].type;
+      pendingSyncQueueRef.current = [];
+      broadcastSync(lastType, mergedData);
+    }, delayMs);
+  }, [broadcastSync]);
 
   // Server version tracking to avoid redundant merges, disk writes and re-renders
   const lastKnownVersionRef = useRef<number | null>(null);
@@ -561,20 +601,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ================= CENTRALIZED REAL-TIME CLOUD SYNC =================
 
-  // Fetch full authoritative snapshot from central server database
+  // Fetch full authoritative snapshot from central server database with HTTP 304 conditional cache validation
   const fetchAuthoritativeData = useCallback(async () => {
     try {
       const startTime = performance.now();
-      const res = await fetch('/api/data');
+      const headers: Record<string, string> = {};
+      if (lastKnownVersionRef.current) {
+        headers['If-None-Match'] = `"${lastKnownVersionRef.current}"`;
+      }
+
+      const res = await fetch('/api/data', { headers });
+      
+      // HTTP 304 Cache Hit: Server database hasn't changed. Zero re-renders, instantaneous response.
+      if (res.status === 304) {
+        const elapsed = Math.max(0.1, Number((performance.now() - startTime).toFixed(1)));
+        setSyncLatencyMs(elapsed);
+        setIsOnline(true);
+        return;
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.status === 'ok' && json.data) {
         const db = json.data;
 
-        // Skip parsing and state updating if server version hasn't changed
-        if (typeof db.version === 'number' && lastKnownVersionRef.current === db.version) {
-          return;
-        }
         if (typeof db.version === 'number') {
           lastKnownVersionRef.current = db.version;
         }
@@ -584,103 +634,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           safeSetItem(STORAGE_KEYS.COMPANY, db.companyDetails);
         }
         if (Array.isArray(db.priceList)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.priceList, priceListRef.current, STORAGE_KEYS.PRICES);
-          if (hasChanges) {
-            setPriceList(merged);
-            priceListRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('PRICE_UPDATE', { priceList: merged });
+          setPriceList(db.priceList);
+          priceListRef.current = db.priceList;
+          safeSetItem(STORAGE_KEYS.PRICES, db.priceList);
         }
         if (Array.isArray(db.targets)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.targets, targetsRef.current, STORAGE_KEYS.TARGETS);
-          if (hasChanges) {
-            setTargets(merged);
-            targetsRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('SYNC_TARGETS', { targets: merged });
+          setTargets(db.targets);
+          targetsRef.current = db.targets;
+          safeSetItem(STORAGE_KEYS.TARGETS, db.targets);
         }
         if (Array.isArray(db.dealerApplications)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerApplications, dealerApplicationsRef.current, STORAGE_KEYS.DEALERS);
-          if (hasChanges) {
-            setDealerApplications(merged);
-            dealerApplicationsRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('DEALER_UPDATE', { dealerApplications: merged });
+          setDealerApplications(db.dealerApplications);
+          dealerApplicationsRef.current = db.dealerApplications;
+          safeSetItem(STORAGE_KEYS.DEALERS, db.dealerApplications);
         }
         if (Array.isArray(db.travelExpenses)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.travelExpenses, travelExpensesRef.current, STORAGE_KEYS.EXPENSES);
-          if (hasChanges) {
-            setTravelExpenses(merged);
-            travelExpensesRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('EXPENSE_UPDATE', { travelExpenses: merged });
+          setTravelExpenses(db.travelExpenses);
+          travelExpensesRef.current = db.travelExpenses;
+          safeSetItem(STORAGE_KEYS.EXPENSES, db.travelExpenses);
         }
         if (Array.isArray(db.users) && db.users.length > 0) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.users, usersRef.current, STORAGE_KEYS.USERS);
-          if (hasChanges) {
-            setUsers(merged);
-            usersRef.current = merged;
+          const map = new Map<string, User>();
+          db.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
+          const uniqueUsers = Array.from(map.values());
+          setUsers(uniqueUsers);
+          usersRef.current = uniqueUsers;
+          safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
+
+          // Real-time update of currentUser profile & permissions when modified
+          if (currentUser) {
+            const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
+            if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
+              setCurrentUser(refreshed);
+            }
           }
-          if (missingOnServer.length > 0) broadcastSync('USER_UPDATE', { users: merged });
         }
         if (Array.isArray(db.activities)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.activities, activitiesRef.current, STORAGE_KEYS.ACTIVITIES);
-          if (hasChanges) {
-            setActivities(merged);
-            activitiesRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('ACTIVITY_UPDATE', { activities: merged });
+          setActivities(db.activities);
+          activitiesRef.current = db.activities;
+          safeSetItem(STORAGE_KEYS.ACTIVITIES, db.activities);
         }
         if (Array.isArray(db.dailyActivities)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
-          if (hasChanges) {
-            setDailyActivities(merged);
-            dailyActivitiesRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('DAILY_ACTIVITY_UPDATE', { dailyActivities: merged });
+          setDailyActivities(db.dailyActivities);
+          dailyActivitiesRef.current = db.dailyActivities;
+          safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, db.dailyActivities);
         }
         if (Array.isArray(db.dealerOrders)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerOrders, dealerOrdersRef.current, STORAGE_KEYS.DEALER_ORDERS);
-          if (hasChanges) {
-            setDealerOrders(merged);
-            dealerOrdersRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('DEALER_ORDERS', { dealerOrders: merged });
+          setDealerOrders(db.dealerOrders);
+          dealerOrdersRef.current = db.dealerOrders;
+          safeSetItem(STORAGE_KEYS.DEALER_ORDERS, db.dealerOrders);
         }
         if (Array.isArray(db.dealerCollections)) {
-          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerCollections, dealerCollectionsRef.current, STORAGE_KEYS.DEALER_COLLECTIONS);
-          if (hasChanges) {
-            setDealerCollections(merged);
-            dealerCollectionsRef.current = merged;
-          }
-          if (missingOnServer.length > 0) broadcastSync('DEALER_COLLECTIONS', { dealerCollections: merged });
+          setDealerCollections(db.dealerCollections);
+          dealerCollectionsRef.current = db.dealerCollections;
+          safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, db.dealerCollections);
         }
         if (db.travelSheets && typeof db.travelSheets === 'object') {
-          const currentLocal = travelSheetsRef.current || {};
-          const mergedSheets = { ...db.travelSheets };
-          let sheetsChanged = false;
-          Object.entries(currentLocal).forEach(([key, localVal]) => {
-            const serverVal = mergedSheets[key];
-            if (!serverVal) {
-              mergedSheets[key] = localVal;
-              sheetsChanged = true;
-            } else if (localVal && typeof localVal === 'object') {
-              const localTime = new Date(localVal.lastUpdated || 0).getTime();
-              const serverTime = new Date((serverVal && serverVal.lastUpdated) || 0).getTime();
-              if (localTime >= serverTime) {
-                mergedSheets[key] = localVal;
-                sheetsChanged = true;
-              }
-            }
+          setTravelSheets(db.travelSheets);
+          travelSheetsRef.current = db.travelSheets;
+          safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, db.travelSheets);
+          Object.entries(db.travelSheets).forEach(([key, val]) => {
+            safeSetItem(`blackworm_travel_sheet_${key}`, val);
           });
-          if (sheetsChanged || Object.keys(mergedSheets).length !== Object.keys(currentLocal).length) {
-            setTravelSheets(mergedSheets);
-            travelSheetsRef.current = mergedSheets;
-            safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, mergedSheets);
-            Object.entries(mergedSheets).forEach(([key, val]) => {
-              safeSetItem(`blackworm_travel_sheet_${key}`, val);
-            });
-          }
         }
 
         const elapsed = Math.max(0.1, Number((performance.now() - startTime).toFixed(1)));
@@ -691,7 +706,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.warn('Central server sync poll error (using cached local data):', err);
     }
-  }, [broadcastSync, mergeWithLocal]);
+  }, []);
 
   // Server-Sent Events (SSE) listener for instantaneous 0-ms push from server across all devices
   useEffect(() => {
@@ -709,24 +724,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (!payload || payload.sender === clientId || !payload.data || typeof payload.data !== 'object') return;
 
             const startTime = performance.now();
+            if (typeof payload.version === 'number') {
+              lastKnownVersionRef.current = payload.version;
+            }
+
             if (payload.data.companyDetails) {
               setCompanyDetails(payload.data.companyDetails);
               safeSetItem(STORAGE_KEYS.COMPANY, payload.data.companyDetails);
             }
             if (payload.data.priceList) {
               setPriceList(payload.data.priceList);
+              priceListRef.current = payload.data.priceList;
               safeSetItem(STORAGE_KEYS.PRICES, payload.data.priceList);
             }
             if (payload.data.targets) {
               setTargets(payload.data.targets);
+              targetsRef.current = payload.data.targets;
               safeSetItem(STORAGE_KEYS.TARGETS, payload.data.targets);
             }
             if (payload.data.dealerApplications) {
               setDealerApplications(payload.data.dealerApplications);
+              dealerApplicationsRef.current = payload.data.dealerApplications;
               safeSetItem(STORAGE_KEYS.DEALERS, payload.data.dealerApplications);
             }
             if (payload.data.travelExpenses) {
               setTravelExpenses(payload.data.travelExpenses);
+              travelExpensesRef.current = payload.data.travelExpenses;
               safeSetItem(STORAGE_KEYS.EXPENSES, payload.data.travelExpenses);
             }
             if (payload.data.users) {
@@ -734,27 +757,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               payload.data.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
               const uniqueUsers = Array.from(map.values());
               setUsers(uniqueUsers);
+              usersRef.current = uniqueUsers;
               safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
+
+              // Real-time update of currentUser permissions/profile when modified by Admin
+              if (currentUser) {
+                const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
+                if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
+                  setCurrentUser(refreshed);
+                }
+              }
             }
             if (payload.data.activities) {
               setActivities(payload.data.activities);
+              activitiesRef.current = payload.data.activities;
               safeSetItem(STORAGE_KEYS.ACTIVITIES, payload.data.activities);
             }
             if (payload.data.dailyActivities) {
-              const { merged, hasChanges } = mergeWithLocal(payload.data.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
-              if (hasChanges) setDailyActivities(merged);
+              setDailyActivities(payload.data.dailyActivities);
+              dailyActivitiesRef.current = payload.data.dailyActivities;
+              safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, payload.data.dailyActivities);
             }
             if (payload.data.dealerOrders) {
               setDealerOrders(payload.data.dealerOrders);
+              dealerOrdersRef.current = payload.data.dealerOrders;
               safeSetItem(STORAGE_KEYS.DEALER_ORDERS, payload.data.dealerOrders);
             }
             if (payload.data.dealerCollections) {
               setDealerCollections(payload.data.dealerCollections);
+              dealerCollectionsRef.current = payload.data.dealerCollections;
               safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, payload.data.dealerCollections);
             }
             if (payload.data.travelSheets) {
               const updatedSheets = { ...travelSheetsRef.current, ...payload.data.travelSheets };
               setTravelSheets(updatedSheets);
+              travelSheetsRef.current = updatedSheets;
               safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updatedSheets);
               Object.entries(payload.data.travelSheets).forEach(([key, val]) => {
                 safeSetItem(`blackworm_travel_sheet_${key}`, val);
@@ -779,13 +816,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             eventSource.close();
             eventSource = null;
           }
-          // Reconnect after 3 seconds
+          // Reconnect after 2 seconds
           clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connectSSE, 3000);
+          reconnectTimeout = setTimeout(connectSSE, 2000);
         };
       } catch (err) {
         clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(connectSSE, 3000);
+        reconnectTimeout = setTimeout(connectSSE, 2000);
       }
     };
 
@@ -803,8 +840,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('focus', handleVisibilityOrFocus);
 
-    // Periodic heartbeat sync every 10 seconds to ensure 100% sync integrity
-    const syncInterval = setInterval(fetchAuthoritativeData, 10000);
+    // Periodic heartbeat sync every 3 seconds to ensure 100% real-time integrity across all devices
+    const syncInterval = setInterval(fetchAuthoritativeData, 3000);
 
     const handleOnline = () => {
       setIsOnline(true);
@@ -825,6 +862,116 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [clientId, fetchAuthoritativeData]);
 
+  // -------------------------------------------------------------------------
+  // FIREBASE FIRESTORE REAL-TIME LISTENER (100% Guaranteed 0ms Cross-Device Sync)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    let unsubscribeFirestore: (() => void) | null = null;
+
+    try {
+      unsubscribeFirestore = onSnapshot(
+        doc(db, 'app', 'globalData'),
+        (snapshot) => {
+          if (!snapshot.exists()) return;
+          const remoteData = snapshot.data();
+          if (!remoteData) return;
+
+          // Ignore self-published events
+          if (remoteData.sender === clientId) return;
+
+          const startTime = performance.now();
+
+          if (typeof remoteData.version === 'number') {
+            lastKnownVersionRef.current = remoteData.version;
+          }
+
+          if (remoteData.companyDetails) {
+            setCompanyDetails(remoteData.companyDetails);
+            safeSetItem(STORAGE_KEYS.COMPANY, remoteData.companyDetails);
+          }
+          if (Array.isArray(remoteData.priceList)) {
+            setPriceList(remoteData.priceList);
+            priceListRef.current = remoteData.priceList;
+            safeSetItem(STORAGE_KEYS.PRICES, remoteData.priceList);
+          }
+          if (Array.isArray(remoteData.targets)) {
+            setTargets(remoteData.targets);
+            targetsRef.current = remoteData.targets;
+            safeSetItem(STORAGE_KEYS.TARGETS, remoteData.targets);
+          }
+          if (Array.isArray(remoteData.dealerApplications)) {
+            setDealerApplications(remoteData.dealerApplications);
+            dealerApplicationsRef.current = remoteData.dealerApplications;
+            safeSetItem(STORAGE_KEYS.DEALERS, remoteData.dealerApplications);
+          }
+          if (Array.isArray(remoteData.travelExpenses)) {
+            setTravelExpenses(remoteData.travelExpenses);
+            travelExpensesRef.current = remoteData.travelExpenses;
+            safeSetItem(STORAGE_KEYS.EXPENSES, remoteData.travelExpenses);
+          }
+          if (Array.isArray(remoteData.users) && remoteData.users.length > 0) {
+            const map = new Map<string, User>();
+            remoteData.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
+            const uniqueUsers = Array.from(map.values());
+            setUsers(uniqueUsers);
+            usersRef.current = uniqueUsers;
+            safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
+
+            if (currentUser) {
+              const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
+              if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
+                setCurrentUser(refreshed);
+              }
+            }
+          }
+          if (Array.isArray(remoteData.activities)) {
+            setActivities(remoteData.activities);
+            activitiesRef.current = remoteData.activities;
+            safeSetItem(STORAGE_KEYS.ACTIVITIES, remoteData.activities);
+          }
+          if (Array.isArray(remoteData.dailyActivities)) {
+            setDailyActivities(remoteData.dailyActivities);
+            dailyActivitiesRef.current = remoteData.dailyActivities;
+            safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, remoteData.dailyActivities);
+          }
+          if (Array.isArray(remoteData.dealerOrders)) {
+            setDealerOrders(remoteData.dealerOrders);
+            dealerOrdersRef.current = remoteData.dealerOrders;
+            safeSetItem(STORAGE_KEYS.DEALER_ORDERS, remoteData.dealerOrders);
+          }
+          if (Array.isArray(remoteData.dealerCollections)) {
+            setDealerCollections(remoteData.dealerCollections);
+            dealerCollectionsRef.current = remoteData.dealerCollections;
+            safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, remoteData.dealerCollections);
+          }
+          if (remoteData.travelSheets && typeof remoteData.travelSheets === 'object') {
+            const updatedSheets = { ...travelSheetsRef.current, ...remoteData.travelSheets };
+            setTravelSheets(updatedSheets);
+            travelSheetsRef.current = updatedSheets;
+            safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updatedSheets);
+            Object.entries(remoteData.travelSheets).forEach(([key, val]) => {
+              safeSetItem(`blackworm_travel_sheet_${key}`, val);
+            });
+          }
+
+          const latency = Math.max(0.1, Number((performance.now() - startTime).toFixed(2)));
+          setSyncLatencyMs(latency);
+          setLastSyncTimestamp(remoteData.lastUpdated || new Date().toISOString());
+          setIsOnline(true);
+        },
+        (error) => {
+          console.warn('Firebase Firestore real-time listener notice:', error);
+        }
+      );
+    } catch (e) {
+      console.warn('Firebase Firestore initialization notice:', e);
+    }
+
+    return () => {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+    };
+  }, [clientId, currentUser]);
+
   // Activity logger
   const logActivity = useCallback((action: string, actionMr: string, module: string, details: string) => {
     const newLog: ActivityLog = {
@@ -844,17 +991,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, [currentUser]);
 
-  // CRUD for Company Details
-  const updateCompanyDetails = useCallback((details: Partial<CompanyDetails>) => {
+  // CRUD for Company Details with instant optimistic UI & debounced cloud broadcast
+  const updateCompanyDetails = useCallback((details: Partial<CompanyDetails>, notify: boolean = false) => {
     setCompanyDetails((prev) => {
       const updated = { ...prev, ...details };
       safeSetItem(STORAGE_KEYS.COMPANY, updated);
-      broadcastSync('COMPANY_UPDATE', { companyDetails: updated });
+      debouncedBroadcastSync('COMPANY_UPDATE', { companyDetails: updated }, 200);
       return updated;
     });
-    logActivity('Company Details Updated', 'कंपनी तपशील अद्ययावत केले', 'settings', 'कंपनीचे पत्ता/बँक तपशील बदलण्यात आले.');
-    showNotification(language === 'mr' ? 'कंपनी तपशील यशस्वीरित्या सेव्ह झाले.' : 'Company details saved successfully.');
-  }, [broadcastSync, language, logActivity, showNotification]);
+    if (notify) {
+      logActivity('Company Details Updated', 'कंपनी तपशील अद्ययावत केले', 'settings', 'कंपनीचे पत्ता/बँक तपशील बदलण्यात आले.');
+      showNotification(language === 'mr' ? 'कंपनी तपशील यशस्वीरित्या सेव्ह झाले.' : 'Company details saved successfully.');
+    }
+  }, [debouncedBroadcastSync, language, logActivity, showNotification]);
 
   // CRUD for Price List
   const addPriceItem = useCallback((item: Omit<PriceListItem, 'id'>) => {
@@ -865,6 +1014,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPriceList((prev) => {
       const updated = [newItem, ...prev];
       safeSetItem(STORAGE_KEYS.PRICES, updated);
+      priceListRef.current = updated;
+      broadcastSync('PRICE_UPDATE', { priceList: updated });
       return updated;
     });
 
@@ -876,12 +1027,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Added Product to Price List', 'प्राइस लिस्टमध्ये नवीन उत्पादन जोडले', 'price-list', `${newItem.nameMr} - ₹${newItem.dealerPrice}`);
     showNotification(language === 'mr' ? 'नवीन प्रॉडक्ट प्राइस लिस्टमध्ये जोडले!' : 'Product added to price list!');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updatePriceItem = useCallback((id: string, patch: Partial<PriceListItem>) => {
     setPriceList((prev) => {
       const updated = prev.map((item) => (item.id === id ? { ...item, ...patch } : item));
       safeSetItem(STORAGE_KEYS.PRICES, updated);
+      priceListRef.current = updated;
+      broadcastSync('PRICE_UPDATE', { priceList: updated });
       return updated;
     });
 
@@ -893,12 +1046,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Updated Price Item', 'प्रॉडक्ट दर अद्ययावत केले', 'price-list', `आयटम ${id} चे दर बदलले.`);
     showNotification(language === 'mr' ? 'प्रॉडक्ट माहिती अद्ययावत झाली.' : 'Product updated successfully.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const deletePriceItem = useCallback((id: string) => {
     setPriceList((prev) => {
       const updated = prev.filter((item) => item.id !== id);
       safeSetItem(STORAGE_KEYS.PRICES, updated);
+      priceListRef.current = updated;
+      broadcastSync('PRICE_UPDATE', { priceList: updated });
       return updated;
     });
 
@@ -910,7 +1065,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Deleted Product', 'प्रॉडक्ट हटवले', 'price-list', `आयटम ${id} हटवला.`);
     showNotification(language === 'mr' ? 'प्रॉडक्ट हटवले गेले.' : 'Product deleted.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const importBulkPriceItems = useCallback((newItems: Omit<PriceListItem, 'id'>[], replaceExisting: boolean = false) => {
     setPriceList((prev) => {
@@ -937,6 +1092,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       safeSetItem(STORAGE_KEYS.PRICES, updatedList);
+      priceListRef.current = updatedList;
+      broadcastSync('PRICE_UPDATE', { priceList: updatedList });
 
       fetch('/api/prices/bulk', {
         method: 'POST',
@@ -958,7 +1115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `${newItems.length} प्रॉडक्ट्स प्राईस लिस्टमध्ये यशस्वीपणे समाविष्ट झाले!`
         : `${newItems.length} products imported into price list!`
     );
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   // CRUD for Targets
   const addTarget = useCallback((target: Omit<TargetItem, 'id' | 'lastUpdated'>) => {
@@ -970,6 +1127,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTargets((prev) => {
       const updated = [newTarget, ...prev];
       safeSetItem(STORAGE_KEYS.TARGETS, updated);
+      targetsRef.current = updated;
+      broadcastSync('TARGET_UPDATE', { targets: updated });
       return updated;
     });
 
@@ -981,12 +1140,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Created Sales Target', 'नवीन विक्री उद्दिष्ट निश्चित केले', 'target-sheet', `${newTarget.executiveName} - ₹${newTarget.targetAmount.toLocaleString()}`);
     showNotification(language === 'mr' ? 'नवीन टार्गेट यशस्वीरित्या जोडले गेले!' : 'Target added successfully!');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updateTarget = useCallback((id: string, patch: Partial<TargetItem>) => {
     setTargets((prev) => {
       const updated = prev.map((item) => (item.id === id ? { ...item, ...patch, lastUpdated: new Date().toISOString() } : item));
       safeSetItem(STORAGE_KEYS.TARGETS, updated);
+      targetsRef.current = updated;
+      broadcastSync('TARGET_UPDATE', { targets: updated });
       return updated;
     });
 
@@ -998,12 +1159,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Target Updated', 'टार्गेट प्रगती अद्ययावत केली', 'target-sheet', `टार्गेट ${id} अपडेट केले.`);
     showNotification(language === 'mr' ? 'टार्गेट सीट अद्ययावत केली.' : 'Target sheet updated.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const deleteTarget = useCallback((id: string) => {
     setTargets((prev) => {
       const updated = prev.filter((item) => item.id !== id);
       safeSetItem(STORAGE_KEYS.TARGETS, updated);
+      targetsRef.current = updated;
+      broadcastSync('TARGET_UPDATE', { targets: updated });
       return updated;
     });
 
@@ -1015,7 +1178,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Deleted Target', 'टार्गेट हटवले', 'target-sheet', `टार्गेट ${id} हटवले.`);
     showNotification(language === 'mr' ? 'टार्गेट हटवले.' : 'Target deleted.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   // Sync collections to Target Sheets actualCollectionLakh automatically
   const syncCollectionsToTargetSheets = useCallback((collectionsList: DealerCollectionRecord[]) => {
@@ -1090,49 +1253,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const updated = [newOrder, ...dealerOrdersRef.current];
     setDealerOrders(updated);
+    dealerOrdersRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_ORDERS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_ORDERS', data: { dealerOrders: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to sync dealer order:', err));
+    broadcastSync('DEALER_ORDERS', { dealerOrders: updated });
 
     logActivity('New Dealer Order Bill', 'नवीन डीलर ऑर्डर बिल नोंदवले', 'order-collection', `${newOrder.dealerName} - बिल क्र: ${newOrder.billNumber} (₹${newOrder.totalAmount.toLocaleString()})`);
     showNotification(language === 'mr' ? `ऑर्डर बिल ${newOrder.billNumber} यशस्वीरीत्या सेव्ह झाले!` : `Order bill ${newOrder.billNumber} created!`);
     return newOrder;
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, language, logActivity, showNotification]);
 
   const updateDealerOrder = useCallback((id: string, patch: Partial<DealerOrderBill>) => {
     const updated = dealerOrdersRef.current.map((o) => (o.id === id ? { ...o, ...patch } : o));
     setDealerOrders(updated);
+    dealerOrdersRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_ORDERS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_ORDERS', data: { dealerOrders: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to update dealer order:', err));
+    broadcastSync('DEALER_ORDERS', { dealerOrders: updated });
 
     logActivity('Updated Dealer Order', 'डीलर ऑर्डर बिल अद्ययावत केले', 'order-collection', `बिल ${id}`);
     showNotification(language === 'mr' ? 'ऑर्डर बिल अद्ययावत झाले.' : 'Order bill updated.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, language, logActivity, showNotification]);
 
   const deleteDealerOrder = useCallback((id: string) => {
     const targetOrder = dealerOrdersRef.current.find((o) => o.id === id);
     const updated = dealerOrdersRef.current.filter((o) => o.id !== id);
     setDealerOrders(updated);
+    dealerOrdersRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_ORDERS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_ORDERS', data: { dealerOrders: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to delete dealer order:', err));
+    broadcastSync('DEALER_ORDERS', { dealerOrders: updated });
 
     logActivity('Deleted Order Bill', 'ऑर्डर बिल डिलीट केले', 'order-collection', `बिल: ${targetOrder?.billNumber || id}`);
     showNotification(language === 'mr' ? 'ऑर्डर बिल हटवले.' : 'Order bill deleted.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, language, logActivity, showNotification]);
 
   // CRUD for Dealer Collections
   const addDealerCollection = useCallback((col: Omit<DealerCollectionRecord, 'id' | 'createdAt' | 'amountLakh' | 'targetMonth'> & { targetMonth?: string }) => {
@@ -1150,13 +1301,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newCol, ...dealerCollectionsRef.current];
     setDealerCollections(updated);
+    dealerCollectionsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_COLLECTIONS', data: { dealerCollections: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to sync collection:', err));
+    broadcastSync('DEALER_COLLECTIONS', { dealerCollections: updated });
 
     // Automatically sync to target sheet
     syncCollectionsToTargetSheets(updated);
@@ -1164,7 +1311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity('Collection Received', 'कलेक्शन जमा नोंदवले', 'order-collection', `${newCol.dealerName}: ₹${amt.toLocaleString()} (${newCol.paymentMode.toUpperCase()}) - ${targetMonth} महिना`);
     showNotification(language === 'mr' ? `₹${amt.toLocaleString()} चे कलेक्शन जमा झाले व ${targetMonth} च्या टार्गेट सीटमध्ये ऍक्च्युअल कलेक्शन अपडेट झाले!` : `Collection of ₹${amt.toLocaleString()} recorded & Target Sheet updated!`);
     return newCol;
-  }, [clientId, language, logActivity, showNotification, syncCollectionsToTargetSheets]);
+  }, [broadcastSync, language, logActivity, showNotification, syncCollectionsToTargetSheets]);
 
   const updateDealerCollection = useCallback((id: string, patch: Partial<DealerCollectionRecord>) => {
     const updated = dealerCollectionsRef.current.map((c) => {
@@ -1181,32 +1328,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setDealerCollections(updated);
+    dealerCollectionsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_COLLECTIONS', data: { dealerCollections: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to update collection:', err));
+    broadcastSync('DEALER_COLLECTIONS', { dealerCollections: updated });
 
     syncCollectionsToTargetSheets(updated);
     showNotification(language === 'mr' ? 'कलेक्शन नोंद अद्ययावत झाली.' : 'Collection record updated.');
-  }, [clientId, language, showNotification, syncCollectionsToTargetSheets]);
+  }, [broadcastSync, language, showNotification, syncCollectionsToTargetSheets]);
 
   const deleteDealerCollection = useCallback((id: string) => {
     const updated = dealerCollectionsRef.current.filter((c) => c.id !== id);
     setDealerCollections(updated);
+    dealerCollectionsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, updated);
-
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'DEALER_COLLECTIONS', data: { dealerCollections: updated }, sender: clientId }),
-    }).catch((err) => console.warn('Failed to delete collection:', err));
+    broadcastSync('DEALER_COLLECTIONS', { dealerCollections: updated });
 
     syncCollectionsToTargetSheets(updated);
     showNotification(language === 'mr' ? 'कलेक्शन नोंद हटवली.' : 'Collection record deleted.');
-  }, [clientId, language, showNotification, syncCollectionsToTargetSheets]);
+  }, [broadcastSync, language, showNotification, syncCollectionsToTargetSheets]);
 
   // Dealer Balance & Current Outstanding Calculation
   const getDealerBalance = useCallback((dealerId: string) => {
@@ -1236,7 +1375,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newApp, ...currentDealers.filter((d) => d.id !== newApp.id)];
     setDealerApplications(updated);
+    dealerApplicationsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALERS, updated);
+    broadcastSync('DEALER_UPDATE', { dealerApplications: updated });
 
     // Save to central cloud database
     fetch('/api/dealers', {
@@ -1258,13 +1399,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return newApp;
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updateDealerApplication = useCallback((id: string, patch: Partial<DealerApplication>) => {
     const currentDealers = dealerApplicationsRef.current;
     const updated = currentDealers.map((app) => (app.id === id ? { ...app, ...patch } : app));
     setDealerApplications(updated);
+    dealerApplicationsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALERS, updated);
+    broadcastSync('DEALER_UPDATE', { dealerApplications: updated });
 
     fetch(`/api/dealers/${id}`, {
       method: 'PUT',
@@ -1274,7 +1417,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Updated Dealer Application', 'डीलर अर्ज माहिती अद्ययावत केली', 'dealer-form', `अर्ज ${id}`);
     showNotification(language === 'mr' ? 'डीलर माहिती सेव्ह झाली.' : 'Dealer application updated.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updateDealerStatus = useCallback((id: string, status: DealerApplication['status'], remarks?: string) => {
     const currentDealers = dealerApplicationsRef.current;
@@ -1291,7 +1434,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setDealerApplications(updated);
+    dealerApplicationsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALERS, updated);
+    broadcastSync('DEALER_UPDATE', { dealerApplications: updated });
 
     fetch(`/api/dealers/${id}`, {
       method: 'PUT',
@@ -1308,7 +1453,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const statusText = status === 'approved' ? 'मंजूर केला' : status === 'rejected' ? 'नाकारला' : status === 'cancelled' ? 'रद्द केला (कोड रीलिज)' : 'तपासणीत ठेवला';
     logActivity('Dealer Application Status Changed', `डीलर अर्ज स्थिती ${statusText}`, 'dealer-form', `अर्ज क्रमांक ${id}`);
     showNotification(language === 'mr' ? `डीलर अर्ज स्थिती: ${statusText}` : `Dealer status updated to: ${status}`);
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const cancelDealerApplication = useCallback((id: string, reason?: string) => {
     const currentDealers = dealerApplicationsRef.current;
@@ -1323,7 +1468,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = currentDealers.map((app) => (app.id === id ? { ...app, ...patch } : app));
     setDealerApplications(updated);
+    dealerApplicationsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALERS, updated);
+    broadcastSync('DEALER_UPDATE', { dealerApplications: updated });
 
     fetch(`/api/dealers/${id}`, {
       method: 'PUT',
@@ -1342,7 +1489,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `डीलर अर्ज रद्द केला. कोड ${codeReleased} नवीन अर्जासाठी पुन्हा उपलब्ध झाला आहे.`
         : `Dealership cancelled. Code ${codeReleased} returned to pool.`
     );
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const deleteDealerApplication = useCallback((id: string) => {
     const currentDealers = dealerApplicationsRef.current;
@@ -1351,7 +1498,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = currentDealers.filter((app) => app.id !== id);
 
     setDealerApplications(updated);
+    dealerApplicationsRef.current = updated;
     safeSetItem(STORAGE_KEYS.DEALERS, updated);
+    broadcastSync('DEALER_UPDATE', { dealerApplications: updated });
 
     fetch(`/api/dealers/${id}`, {
       method: 'DELETE',
@@ -1370,7 +1519,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `डीलर अर्ज डिलीट केला (कोड ${codeReleased} मोकळा झाला).`
         : `Dealer application deleted (Code ${codeReleased} freed).`
     );
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   // CRUD for Daily Activities (Site visits, Farmer meetings, Dealer interactions)
   const addDailyActivity = useCallback((activityData: Omit<DailyActivity, 'id' | 'createdAt'> | DailyActivity): DailyActivity => {
@@ -1383,7 +1532,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newActivity, ...dailyActivitiesRef.current.filter((a) => a.id !== newActivity.id)];
     setDailyActivities(updated);
+    dailyActivitiesRef.current = updated;
     safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, updated);
+    broadcastSync('DAILY_ACTIVITY_UPDATE', { dailyActivities: updated });
 
     // Save to central cloud database
     fetch('/api/daily-activities', {
@@ -1404,12 +1555,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return newActivity;
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updateDailyActivity = useCallback((id: string, patch: Partial<DailyActivity>) => {
     const updated = dailyActivitiesRef.current.map((a) => (a.id === id ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a));
     setDailyActivities(updated);
+    dailyActivitiesRef.current = updated;
     safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, updated);
+    broadcastSync('DAILY_ACTIVITY_UPDATE', { dailyActivities: updated });
 
     fetch(`/api/daily-activities/${id}`, {
       method: 'PUT',
@@ -1420,13 +1573,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showNotification(
       language === 'mr' ? 'कामकाज माहिती अद्ययावत झाली.' : 'Daily activity updated.'
     );
-  }, [clientId, language, showNotification]);
+  }, [broadcastSync, clientId, language, showNotification]);
 
   const deleteDailyActivity = useCallback((id: string) => {
     const target = dailyActivitiesRef.current.find((a) => a.id === id);
     const updated = dailyActivitiesRef.current.filter((a) => a.id !== id);
     setDailyActivities(updated);
+    dailyActivitiesRef.current = updated;
     safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, updated);
+    broadcastSync('DAILY_ACTIVITY_UPDATE', { dailyActivities: updated });
 
     fetch(`/api/daily-activities/${id}`, {
       method: 'DELETE',
@@ -1445,7 +1600,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       language === 'mr' ? 'कामकाज नोंद हटवली.' : 'Daily activity record deleted.',
       'info'
     );
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   // CRUD for Travel Expenses
   const addTravelExpense = useCallback((expense: Omit<TravelExpense, 'id' | 'submittedAt'>) => {
@@ -1457,6 +1612,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTravelExpenses((prev) => {
       const updated = [newExpense, ...prev];
       safeSetItem(STORAGE_KEYS.EXPENSES, updated);
+      travelExpensesRef.current = updated;
+      broadcastSync('EXPENSE_UPDATE', { travelExpenses: updated });
       return updated;
     });
 
@@ -1468,7 +1625,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('Travel Claim Submitted', 'प्रवास खर्च दावा सादर केला', 'travel-expenses', `${newExpense.employeeName}: ${newExpense.fromLocation} ते ${newExpense.toLocation} (₹${newExpense.totalClaimAmount})`);
     showNotification(language === 'mr' ? 'ट्रॅव्हलिंग एक्सपेन्स दावा सबमिट झाला!' : 'Travel claim submitted successfully!');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const updateExpenseStatus = useCallback((id: string, status: TravelExpense['status']) => {
     const approverName = currentUser ? currentUser.name : 'Admin';
@@ -1483,6 +1640,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
       safeSetItem(STORAGE_KEYS.EXPENSES, updated);
+      travelExpensesRef.current = updated;
+      broadcastSync('EXPENSE_UPDATE', { travelExpenses: updated });
       return updated;
     });
 
@@ -1500,12 +1659,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const statusText = status === 'approved' ? 'मंजूर केला' : status === 'paid' ? 'पैसे वर्ग केले' : 'नाकारला';
     logActivity('Expense Claim Status Updated', `प्रवास दावा ${statusText}`, 'travel-expenses', `दावा क्रमांक ${id}`);
     showNotification(language === 'mr' ? `दावा ${statusText}.` : `Claim marked as ${status}.`);
-  }, [clientId, currentUser, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, currentUser, language, logActivity, showNotification]);
 
   const deleteTravelExpense = useCallback((id: string) => {
     setTravelExpenses((prev) => {
       const updated = prev.filter((exp) => exp.id !== id);
       safeSetItem(STORAGE_KEYS.EXPENSES, updated);
+      travelExpensesRef.current = updated;
+      broadcastSync('EXPENSE_UPDATE', { travelExpenses: updated });
       return updated;
     });
 
@@ -1516,22 +1677,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch((err) => console.warn('Failed to delete expense on cloud database:', err));
 
     showNotification(language === 'mr' ? 'खर्च दावा हटवला.' : 'Expense claim removed.');
-  }, [clientId, language, showNotification]);
+  }, [broadcastSync, clientId, language, showNotification]);
 
-  // CRUD for Travel Sheets (Syncs across devices)
+  // CRUD for Travel Sheets (Syncs across devices with 0ms local state & debounced broadcast)
   const saveTravelSheet = useCallback((sheetKey: string, sheetPayload: any) => {
     setTravelSheets((prev) => {
       const updated = { ...prev, [sheetKey]: sheetPayload };
       safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updated);
+      travelSheetsRef.current = updated;
       return updated;
     });
 
     // Save individual key for fast lookup
     safeSetItem(`blackworm_travel_sheet_${sheetKey}`, sheetPayload);
 
-    // Broadcast across all connected clients and save to cloud backend
-    broadcastSync('TRAVEL_SHEET_SYNC', { travelSheets: { [sheetKey]: sheetPayload } });
-  }, [broadcastSync]);
+    // Broadcast across all connected clients with debounced sync
+    debouncedBroadcastSync('TRAVEL_SHEET_SYNC', { travelSheets: { [sheetKey]: sheetPayload } }, 250);
+  }, [debouncedBroadcastSync, safeSetItem]);
 
   // CRUD for Users
   const addUser = useCallback((user: Omit<User, 'id'>) => {

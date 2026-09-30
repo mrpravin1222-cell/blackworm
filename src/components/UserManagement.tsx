@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { BlackwormLogo } from './BlackwormLogo';
 import { User, UserRole, NavTab } from '../types';
 import { ALL_NAV_MODULES } from '../utils/permissionHelpers';
 import { initialUsers } from '../data/initialData';
@@ -81,6 +82,7 @@ export const UserManagement: React.FC = () => {
   }, []);
   
   const isAdmin = currentUser && (
+    currentUser.role === 'admin' ||
     currentUser.loginId === 'admin' || 
     currentUser.loginId === 'pravin' ||
     currentUser.id === 'USR-001' ||
@@ -314,8 +316,8 @@ export const UserManagement: React.FC = () => {
   const renderLogin = () => (
     <div className="max-w-md mx-auto mt-6 p-6 bg-white rounded-2xl shadow-xl border border-slate-100">
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-          <Lock className="w-8 h-8 text-red-600" />
+        <div className="flex justify-center mx-auto mb-3">
+          <BlackwormLogo size="lg" variant="horizontal" className="mx-auto" />
         </div>
         <h2 className="text-xl font-bold text-slate-900">
           {language === 'mr' ? 'युजर लॉगिन' : 'User Login'}

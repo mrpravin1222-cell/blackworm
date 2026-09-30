@@ -28,7 +28,7 @@ const getCurrentMonthYear = (): string => {
 };
 
 export const TravelingExpenses: React.FC = React.memo(() => {
-  const { language, currentUser, users, showNotification, saveTravelSheet, companyDetails } = useApp();
+  const { language, currentUser, users, showNotification, saveTravelSheet, travelSheets, companyDetails } = useApp();
 
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
@@ -62,17 +62,16 @@ export const TravelingExpenses: React.FC = React.memo(() => {
   const [sheetData, setSheetData] = useState<MonthlyTravelSheetData>(() => {
     const userId = currentUser?.id || 'USR-001';
     const currentMonth = getCurrentMonthYear();
-    const storageKey = `blackworm_travel_sheet_${userId}_${currentMonth}`;
+    const sheetKey = `${userId}_${currentMonth}`;
+    const storageKey = `blackworm_travel_sheet_${sheetKey}`;
+    
+    if (travelSheets && travelSheets[sheetKey]) {
+      return travelSheets[sheetKey];
+    }
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        // Clear out old sample data if present
-        if (parsed.id === 'SHEET-AUG-2026-PRAVIN' && parsed.rows?.[2]?.openingKm === 10104) {
-          localStorage.removeItem(storageKey);
-        } else {
-          return parsed;
-        }
+        return JSON.parse(saved);
       } catch (e) {
         // fallback
       }
@@ -100,33 +99,25 @@ export const TravelingExpenses: React.FC = React.memo(() => {
   // Helper to load sheet data for specific user & month
   const loadSheetData = (userId: string, monthYear: string) => {
     const targetUser = users.find((u) => u.id === userId) || currentUser || users[0];
-    const storageKey = `blackworm_travel_sheet_${userId}_${monthYear}`;
-    const saved = localStorage.getItem(storageKey);
+    const sheetKey = `${userId}_${monthYear}`;
+    const storageKey = `blackworm_travel_sheet_${sheetKey}`;
+    
+    let loadedSheet: MonthlyTravelSheetData | null = null;
 
-    let loadedSheet: MonthlyTravelSheetData;
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // If old sample data was cached, purge it to show clean format
-        if (parsed.id === 'SHEET-AUG-2026-PRAVIN' && parsed.rows?.[2]?.openingKm === 10104) {
-          localStorage.removeItem(storageKey);
-          loadedSheet = generateMonthlyTravelSheet(
-            targetUser?.fullName || targetUser?.name || 'Officer',
-            targetUser?.designation || 'Sales Officer',
-            monthYear
-          );
-        } else {
-          loadedSheet = parsed;
-        }
-      } catch (e) {
-        loadedSheet = generateMonthlyTravelSheet(
-          targetUser?.fullName || targetUser?.name || 'Officer',
-          targetUser?.designation || 'Sales Officer',
-          monthYear
-        );
-      }
+    if (travelSheets && travelSheets[sheetKey] && travelSheets[sheetKey].rows) {
+      loadedSheet = travelSheets[sheetKey];
     } else {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          loadedSheet = JSON.parse(saved);
+        } catch (e) {
+          loadedSheet = null;
+        }
+      }
+    }
+
+    if (!loadedSheet) {
       loadedSheet = generateMonthlyTravelSheet(
         targetUser?.fullName || targetUser?.name || 'Officer',
         targetUser?.designation || 'Sales Officer',
@@ -150,7 +141,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
     setSheetDate(dynamicSheetDate);
   };
 
-  // Switch sheet whenever selectedUserId or selectedMonthYear changes
+  // Switch sheet whenever selectedUserId, selectedMonthYear or travelSheets change from cloud
   useEffect(() => {
     // If selected user was deleted, switch to first available user
     if (users.length > 0 && !users.some((u) => u.id === selectedUserId)) {
@@ -159,7 +150,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
       return;
     }
     loadSheetData(selectedUserId, selectedMonthYear);
-  }, [selectedUserId, selectedMonthYear, users, currentUser]);
+  }, [selectedUserId, selectedMonthYear, users, currentUser, travelSheets]);
 
   // Ensure non-admin users cannot switch away from currentUser.id
   useEffect(() => {

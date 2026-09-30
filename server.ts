@@ -3,6 +3,16 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { BLACKWORM_USER_UPLOADED_LOGO_BASE64 } from './src/assets/logoBase64';
+import {
+  initialCompanyDetails,
+  initialUsers,
+  initialPriceList,
+  initialDealerApplications,
+  initialDealerOrders,
+  initialDealerCollections,
+  initialDailyActivities,
+  initialTargets,
+} from './src/data/initialData';
 
 const app = express();
 const PORT = 3000;
@@ -29,183 +39,6 @@ const DB_FILE = path.join(DATA_DIR, 'db.json');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-
-// Initial fallback data
-const initialCompanyDetails = {
-  name: 'Blackworm Agritech Pvt Ltd',
-  tagline: 'Agriculture with new perspective',
-  logoUrl: BLACKWORM_USER_UPLOADED_LOGO_BASE64 || '',
-  cin: 'U01409PN2022PTC217246',
-  gstNo: '27AALCB3069J1ZC',
-  address: 'Gat No. 17 Vijaynagar (Mhaisal), Tal - Miraj, Dist - Sangli. 416409.',
-  taluka: 'Miraj',
-  district: 'Sangli',
-  pincode: '416409',
-  phone: '+91 7798716201',
-  email: 'blackwormagritechpvtltd@gmail.com',
-  bankDetails: {
-    bankName: 'Rajarambapu Sahakari Bank Limited, Miraj',
-    accountNo: '035330268109560',
-    ifsc: 'RRBP0000035',
-    accountHolder: 'Blackworm Agritech Pvt Ltd',
-    branch: 'Miraj Main Branch, Sangli',
-  },
-};
-
-const initialUsers = [
-  {
-    id: 'USR-001',
-    fullName: 'Shreedhar Balkrushna Shinde',
-    name: 'Shreedhar Balkrushna Shinde',
-    designation: 'Owner',
-    village: 'Vijaynagar (Mhaisal)',
-    address: 'Sangli',
-    phone: '+91 7798716201',
-    email: 'blackwormagritechpvtltd@gmail.com',
-    bloodGroup: 'O+',
-    loginId: 'admin',
-    password: '123',
-    role: 'admin',
-    territory: 'Head Office (Sangli)',
-  },
-  {
-    id: 'USR-PRAVIN',
-    fullName: 'Pravin Kumar Waghmare',
-    name: 'Pravin Kumar Waghmare',
-    designation: 'Sr.Sales Officer',
-    village: 'Tasgaon',
-    address: 'Tasgaon, Dist - Sangli',
-    phone: '+91 9822012345',
-    email: 'pravin.waghmare@blackworm.com',
-    bloodGroup: 'B+',
-    loginId: 'pravin',
-    password: '123',
-    role: 'sales-officer',
-    territory: 'Tasgaon, Palus, Kadegaon, Khanapur (Vita )',
-  },
-];
-
-const initialPriceList = [
-  {
-    id: 'PROD-01',
-    code: 'BW-VC-50K',
-    nameMr: 'ब्लॅकवर्म प्रीमियम गांडूळखत (Vermicompost)',
-    nameEn: 'Blackworm Premium Vermicompost',
-    category: 'Organic Fertilizers',
-    packing: '50 Kg Bag',
-    mrp: 950,
-    dealerPrice: 680,
-    distributorPrice: 620,
-    gstRate: 5,
-    hsnCode: '31010099',
-    inStock: true,
-    minOrderQty: 20,
-    descriptionMr: 'उच्च प्रतीचे नैसर्गिक जिवाणूयुक्त सेंद्रिय गांडूळखत.',
-    descriptionEn: 'High quality microbial rich natural organic vermicompost.',
-  },
-  {
-    id: 'PROD-02',
-    code: 'BW-VW-1L',
-    nameMr: 'ब्लॅकवर्म व्हर्मी-वॉश टॉनिक (Vermi-Wash)',
-    nameEn: 'Blackworm Vermi-Wash Tonic',
-    category: 'Bio-Stimulants',
-    packing: '1 Litre Bottle',
-    mrp: 650,
-    dealerPrice: 420,
-    distributorPrice: 380,
-    gstRate: 12,
-    hsnCode: '31010091',
-    inStock: true,
-    minOrderQty: 10,
-    descriptionMr: 'पिकांच्या वाढीसाठी संजीवके आणि एन्झाइम्सने समृद्ध द्रव खत.',
-    descriptionEn: 'Rich liquid extract with plant growth hormones & enzymes.',
-  },
-  {
-    id: 'PROD-03',
-    code: 'BW-NPK-1L',
-    nameMr: 'ब्लॅकवर्म बायो-एनपीके कंसोर्टियम (Bio NPK)',
-    nameEn: 'Blackworm Bio-NPK Consortium',
-    category: 'Organic Fertilizers',
-    packing: '1 Litre Bottle',
-    mrp: 750,
-    dealerPrice: 480,
-    distributorPrice: 440,
-    gstRate: 12,
-    hsnCode: '31051000',
-    inStock: true,
-    minOrderQty: 10,
-    descriptionMr: 'नायट्रोजन, फॉस्फरस व पोटॅश उपलब्ध करून देणारे उपयुक्त जिवाणू.',
-    descriptionEn: 'Liquid bacterial consortium for N, P, and K availability.',
-  },
-  {
-    id: 'PROD-04',
-    code: 'BW-HR-10K',
-    nameMr: 'ब्लॅकवर्म ह्युमिक ग्रॅन्युल्स (Humic Gold)',
-    nameEn: 'Blackworm Humic Gold Granules',
-    category: 'Soil Conditioners',
-    packing: '10 Kg Bucket',
-    mrp: 1250,
-    dealerPrice: 850,
-    distributorPrice: 780,
-    gstRate: 12,
-    hsnCode: '38249900',
-    inStock: true,
-    minOrderQty: 5,
-    descriptionMr: 'पांढऱ्या मुळ्यांची भरघोस वाढ व मातीची सुपीकता वाढवणारे खत.',
-    descriptionEn: 'Enhances white root development and soil carbon buffer.',
-  },
-  {
-    id: 'PROD-05',
-    code: 'BW-MIC-5K',
-    nameMr: 'ब्लॅकवर्म मायक्रोरिच ग्रेड-२ (Micronutrients)',
-    nameEn: 'Blackworm MicroRich Grade-II',
-    category: 'Micronutrients',
-    packing: '5 Kg Bag',
-    mrp: 850,
-    dealerPrice: 580,
-    distributorPrice: 530,
-    gstRate: 12,
-    hsnCode: '38089910',
-    inStock: true,
-    minOrderQty: 8,
-    descriptionMr: 'झिंक, फेरस, कॉपर, बोरॉन व मॅग्नेशियम युक्त सूक्ष्म अन्नद्रव्ये.',
-    descriptionEn: 'Balanced trace elements for flowering and chlorophyll boost.',
-  },
-  {
-    id: 'PROD-06',
-    code: 'BW-NP-1L',
-    nameMr: 'ब्लॅकवर्म नीम प्रोटेक्ट बायो-अर्क (Neem Protect)',
-    nameEn: 'Blackworm Neem Protect Bio-Extract',
-    category: 'Pest Care',
-    packing: '1 Litre Can',
-    mrp: 890,
-    dealerPrice: 590,
-    distributorPrice: 540,
-    gstRate: 12,
-    hsnCode: '38089190',
-    inStock: true,
-    minOrderQty: 10,
-    descriptionMr: 'अझाडिराक्टिनयुक्त १००% सेंद्रिय कीड व रसशोषक कीटक प्रतिबंधक.',
-    descriptionEn: 'Natural azadirachtin repellent for sucking pests and thrips.',
-  },
-  {
-    id: 'PROD-07',
-    code: 'BW-POT-25K',
-    nameMr: 'ब्लॅकवर्म बायो-पोटॅश ग्रॅन्युल्स (Bio Potash)',
-    nameEn: 'Blackworm Bio Potash Granules',
-    category: 'Organic Fertilizers',
-    packing: '25 Kg Bag',
-    mrp: 1100,
-    dealerPrice: 790,
-    distributorPrice: 740,
-    gstRate: 5,
-    hsnCode: '31049000',
-    inStock: true,
-    minOrderQty: 10,
-    descriptionMr: 'फळांचा आकार, वजन व चमक वाढवणारे सेंद्रिय पोटॅश खत.',
-    descriptionEn: 'Organic potash for fruit size, weight, and harvest luster.',
-  },
-];
 
 interface DatabaseSchema {
   version: number;
@@ -300,13 +133,15 @@ function loadDatabase(): DatabaseSchema {
     base.companyDetails.logoUrl = BLACKWORM_USER_UPLOADED_LOGO_BASE64;
   }
   base.priceList = (base.priceList && base.priceList.length > 0) ? base.priceList : initialPriceList;
-  base.targets = base.targets || [];
   base.dealerApplications = base.dealerApplications || [];
+
+  // Ensure initial targets, orders, collections are present
+  base.targets = (base.targets && base.targets.length > 0) ? base.targets : initialTargets;
+  base.dealerOrders = (base.dealerOrders && base.dealerOrders.length > 0) ? base.dealerOrders : initialDealerOrders;
+  base.dealerCollections = base.dealerCollections || initialDealerCollections || [];
+  base.dailyActivities = base.dailyActivities || initialDailyActivities || [];
   base.travelExpenses = base.travelExpenses || [];
-  base.dealerOrders = base.dealerOrders || [];
-  base.dealerCollections = base.dealerCollections || [];
   base.activities = base.activities || [];
-  base.dailyActivities = base.dailyActivities || [];
   base.travelSheets = base.travelSheets || {};
 
   saveDatabase(base);
@@ -382,10 +217,30 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// Full database snapshot
+// Micro-version check endpoint for lightweight cache validation
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: dbState.version || 1,
+    lastUpdated: dbState.lastUpdated,
+  });
+});
+
+// Full database snapshot with conditional 304 ETag caching
 app.get('/api/data', (req, res) => {
+  const currentVersionTag = `"${dbState.version || 1}"`;
+  const clientVersionTag = req.headers['if-none-match'] || (req.query.v ? `"${req.query.v}"` : null);
+
+  res.setHeader('ETag', currentVersionTag);
+  res.setHeader('Cache-Control', 'no-cache');
+
+  if (clientVersionTag && clientVersionTag === currentVersionTag) {
+    // 304 Not Modified - 0 payload, 0 serialization, instantaneous response
+    return res.status(304).end();
+  }
+
   res.json({
     status: 'ok',
+    version: dbState.version || 1,
     data: dbState,
     serverTimestamp: new Date().toISOString(),
   });
@@ -755,6 +610,121 @@ app.delete('/api/prices/:id', (req, res) => {
   broadcastChange('PRICE_UPDATE', { priceList: dbState.priceList }, req.body?.sender);
 
   res.json({ status: 'ok', id });
+});
+
+// --- Dealer Orders API ---
+app.get('/api/dealer-orders', (req, res) => {
+  res.json(dbState.dealerOrders || []);
+});
+
+app.post('/api/dealer-orders', (req, res) => {
+  const orderData = req.body;
+  const newOrder = {
+    ...orderData,
+    id: orderData.id || `ORD-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  dbState.dealerOrders = [newOrder, ...(dbState.dealerOrders || []).filter((o: any) => o.id !== newOrder.id)];
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_ORDERS', { dealerOrders: dbState.dealerOrders }, req.body.sender);
+
+  res.json({ status: 'ok', data: newOrder });
+});
+
+app.put('/api/dealer-orders/:id', (req, res) => {
+  const { id } = req.params;
+  const patch = req.body;
+
+  dbState.dealerOrders = (dbState.dealerOrders || []).map((o: any) => {
+    if (o.id === id) {
+      return { ...o, ...patch, updatedAt: new Date().toISOString() };
+    }
+    return o;
+  });
+
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_ORDERS', { dealerOrders: dbState.dealerOrders }, req.body.sender);
+
+  res.json({ status: 'ok', data: dbState.dealerOrders.find((o: any) => o.id === id) });
+});
+
+app.delete('/api/dealer-orders/:id', (req, res) => {
+  const { id } = req.params;
+  dbState.dealerOrders = (dbState.dealerOrders || []).filter((o: any) => o.id !== id);
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_ORDERS', { dealerOrders: dbState.dealerOrders }, req.body?.sender);
+
+  res.json({ status: 'ok', id });
+});
+
+// --- Dealer Collections API ---
+app.get('/api/dealer-collections', (req, res) => {
+  res.json(dbState.dealerCollections || []);
+});
+
+app.post('/api/dealer-collections', (req, res) => {
+  const colData = req.body;
+  const newCol = {
+    ...colData,
+    id: colData.id || `COL-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  dbState.dealerCollections = [newCol, ...(dbState.dealerCollections || []).filter((c: any) => c.id !== newCol.id)];
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_COLLECTIONS', { dealerCollections: dbState.dealerCollections }, req.body.sender);
+
+  res.json({ status: 'ok', data: newCol });
+});
+
+app.put('/api/dealer-collections/:id', (req, res) => {
+  const { id } = req.params;
+  const patch = req.body;
+
+  dbState.dealerCollections = (dbState.dealerCollections || []).map((c: any) => {
+    if (c.id === id) {
+      return { ...c, ...patch, updatedAt: new Date().toISOString() };
+    }
+    return c;
+  });
+
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_COLLECTIONS', { dealerCollections: dbState.dealerCollections }, req.body.sender);
+
+  res.json({ status: 'ok', data: dbState.dealerCollections.find((c: any) => c.id === id) });
+});
+
+app.delete('/api/dealer-collections/:id', (req, res) => {
+  const { id } = req.params;
+  dbState.dealerCollections = (dbState.dealerCollections || []).filter((c: any) => c.id !== id);
+  dbState.version = (dbState.version || 1) + 1;
+  saveDatabase(dbState);
+  broadcastChange('DEALER_COLLECTIONS', { dealerCollections: dbState.dealerCollections }, req.body?.sender);
+
+  res.json({ status: 'ok', id });
+});
+
+// --- Travel Sheets API ---
+app.get('/api/travel-sheets', (req, res) => {
+  res.json(dbState.travelSheets || {});
+});
+
+app.post('/api/travel-sheets', (req, res) => {
+  const { sheetKey, sheetPayload, sender } = req.body;
+  if (sheetKey && sheetPayload) {
+    dbState.travelSheets = dbState.travelSheets || {};
+    dbState.travelSheets[sheetKey] = sheetPayload;
+    dbState.version = (dbState.version || 1) + 1;
+    saveDatabase(dbState);
+    broadcastChange('TRAVEL_SHEET_SYNC', { travelSheets: { [sheetKey]: sheetPayload } }, sender);
+  }
+  res.json({ status: 'ok' });
 });
 
 // --- Reset Database API (Protected) ---

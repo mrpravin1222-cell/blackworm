@@ -84,16 +84,16 @@ export const Dashboard: React.FC = () => {
     },
     {
       id: 'dealer-form',
-      titleMr: 'डीलर पोर्टल',
-      titleEn: 'Dealer Portal',
+      titleMr: 'डीलर',
+      titleEn: 'Dealer',
       icon: Users,
       iconBg: 'bg-rose-100 text-rose-600 hover:bg-rose-200/80',
       badge: pendingDealersCount,
     },
     {
       id: 'travel-expenses',
-      titleMr: 'ट्रॅव्हल एक्सपेन्स',
-      titleEn: 'Travel Expenses',
+      titleMr: 'ट्रॅव्हल',
+      titleEn: 'Travel',
       icon: Compass,
       iconBg: 'bg-amber-100 text-amber-600 hover:bg-amber-200/80',
       badge: pendingExpensesCount,
@@ -107,15 +107,15 @@ export const Dashboard: React.FC = () => {
     },
     {
       id: 'reporting',
-      titleMr: 'रिपोर्ट्स व ॲनालिटिक्स',
-      titleEn: 'Reports & Analytics',
+      titleMr: 'रिपोर्ट',
+      titleEn: 'Report',
       icon: BarChart3,
       iconBg: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200/80',
     },
     {
       id: 'settings',
       titleMr: 'सेटिंग',
-      titleEn: 'Settings',
+      titleEn: 'Setting',
       icon: Settings,
       iconBg: 'bg-slate-100 text-slate-700 hover:bg-slate-200/80',
     },
@@ -163,7 +163,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <span className="font-semibold text-slate-800 text-[11px] sm:text-xs text-center mt-2 leading-tight group-hover:text-slate-950 transition-colors">
+                <span className="font-semibold text-slate-800 text-[11px] sm:text-xs text-center mt-2 leading-tight group-hover:text-slate-950 transition-colors whitespace-nowrap">
                   {title}
                 </span>
               </button>

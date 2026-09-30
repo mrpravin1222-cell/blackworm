@@ -639,120 +639,74 @@ export const DealerApplicationForm: React.FC = () => {
       {/* DEALERSHIP APPLICATION FORM VIEW */}
       {isFormOpen && (
         <div className="mt-3 sm:mt-4 space-y-3">
-          {/* HEADER ACTION BAR: LIVE CAMERA, SAVE/UPDATE, PRINT, DOWNLOAD PDF, DELETE */}
+          {/* HEADER ACTION BAR: EDIT, SAVE/UPDATE, PRINT, DOWNLOAD PDF, DELETE */}
           <div className="print:hidden bg-white p-2 sm:p-3 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
-            {/* Left: Mode Indicator Badge & Live Camera Trigger */}
+            {/* Left: Mode Indicator Badge */}
             <div className="flex items-center gap-2">
               {currentAppId && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold">
                   <Edit3 className="w-3.5 h-3.5 text-blue-600" />
                   <span>
                     {language === 'mr'
-                      ? `संपादन: ${formData.code || 'डीलर अर्ज'}`
-                      : `Editing: ${formData.code || 'Dealer App'}`}
+                      ? `${formData.code || 'डीलर'}`
+                      : `${formData.code || 'Dealer'}`}
                   </span>
                 </div>
               )}
-
-              {/* LIVE CAMERA BUTTON */}
-              <button
-                type="button"
-                id="dealer-btn-camera"
-                onClick={handleOpenLiveCameraModal}
-                className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl transition-all active:scale-95 cursor-pointer whitespace-nowrap shadow-2xs"
-                title={language === 'mr' ? 'कॅमेऱ्याने थेट फोटो काढा' : 'Live Camera Photo'}
-              >
-                <Camera className="w-4 h-4 text-amber-600" />
-                <span>
-                  {formData.applicantPhotoUrl
-                    ? language === 'mr'
-                      ? 'फोटो बदला'
-                      : 'Change Photo'
-                    : language === 'mr'
-                    ? 'कॅमेरा फोटो'
-                    : 'Live Photo'}
-                </span>
-              </button>
-
-              {formData.applicantPhotoUrl && (
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, applicantPhotoUrl: '' }))}
-                  className="p-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-medium cursor-pointer"
-                  title={language === 'mr' ? 'फोटो काढून टाका' : 'Remove Photo'}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
 
-            {/* ACTION BUTTONS */}
+            {/* Right: ACTION BUTTONS (OPTIMIZED WITH ICONS AS REQUESTED) */}
             <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
-              {/* BUTTON 1: SAVE / UPDATE */}
+              {/* EDIT ICON (Toggle) */}
               <button
+                type="button"
+                onClick={() => setIsEditMode(!isEditMode)}
+                title={language === 'mr' ? 'एडिट करा' : 'Edit Mode'}
+                className={`p-1.5 sm:p-2 rounded-xl transition-all active:scale-95 cursor-pointer shadow-2xs border ${isEditMode ? 'bg-blue-600 text-white border-blue-700' : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'}`}
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+
+              {/* SAVE / UPDATE ICON */}
+              <button
+                type="button"
                 id="dealer-btn-save"
                 onClick={handleSaveToApp}
-                className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all active:scale-95 cursor-pointer whitespace-nowrap shadow-2xs"
+                title={language === 'mr' ? 'माहिती सेव्ह / अपडेट करा' : 'Save / Update Application'}
+                className="p-1.5 sm:p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all active:scale-95 cursor-pointer shadow-xs"
               >
                 {saveSuccess ? (
-                  <Check className="w-4 h-4 text-emerald-600" />
+                  <CheckCircle2 className="w-4 h-4" />
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                <span>
-                  {saveSuccess
-                    ? language === 'mr'
-                      ? 'सेव्ह झाले!'
-                      : 'Saved!'
-                    : currentAppId
-                    ? language === 'mr'
-                      ? 'अपडेट करा'
-                      : 'Update'
-                    : language === 'mr'
-                    ? 'सेव्ह करा'
-                    : 'Save'}
-                </span>
               </button>
 
-              {/* BUTTON 2: PRINT */}
+              {/* PRINT ICON */}
               <button
                 type="button"
                 id="dealer-btn-print"
                 onClick={handlePrint}
                 disabled={isPrinting}
-                className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all active:scale-95 cursor-pointer whitespace-nowrap shadow-2xs disabled:opacity-60"
+                title={language === 'mr' ? 'प्रिंट करा' : 'Print Application'}
+                className="p-1.5 sm:p-2 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-all active:scale-95 cursor-pointer shadow-2xs disabled:opacity-60"
               >
-                <Printer className="w-4 h-4" />
-                <span>
-                  {isPrinting
-                    ? language === 'mr'
-                      ? 'प्रिंट सुरू...'
-                      : 'Printing...'
-                    : language === 'mr'
-                    ? 'प्रिंट'
-                    : 'Print'}
-                </span>
+                {isPrinting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
               </button>
 
-              {/* BUTTON 3: DOWNLOAD PDF */}
+              {/* PDF DOWNLOAD ICON */}
               <button
                 type="button"
                 id="dealer-btn-download-pdf"
                 onClick={handleDownloadPDF}
                 disabled={isDownloading}
-                className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all active:scale-95 cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-60"
+                title={language === 'mr' ? 'पीडीएफ डाउनलोड करा' : 'Download PDF'}
+                className="p-1.5 sm:p-2 text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all active:scale-95 cursor-pointer shadow-xs disabled:opacity-60"
               >
-                <Download className="w-4 h-4" />
-                <span>
-                  {isDownloading
-                    ? language === 'mr'
-                      ? 'डाउनलोड होत आहे...'
-                      : 'Downloading...'
-                    : 'PDF'}
-                </span>
+                {isDownloading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               </button>
 
-              {/* DELETE BUTTON (IF EXISTING FORM) */}
+              {/* DELETE ICON (ONLY FOR EXISTING) */}
               {currentAppId && (
                 <button
                   type="button"
@@ -760,11 +714,10 @@ export const DealerApplicationForm: React.FC = () => {
                     const found = dealerApplications.find((d) => d.id === currentAppId);
                     if (found) setDealerToDelete(found);
                   }}
-                  className="flex items-center gap-1 text-xs sm:text-sm font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all active:scale-95 cursor-pointer whitespace-nowrap shadow-2xs"
-                  title="हा फॉर्म डिलीट करा"
+                  title={language === 'mr' ? 'डिलीट करा' : 'Delete'}
+                  className="p-1.5 sm:p-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all active:scale-95 cursor-pointer shadow-2xs"
                 >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                  <span className="hidden sm:inline">{language === 'mr' ? 'डिलीट' : 'Delete'}</span>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -831,43 +784,39 @@ export const DealerApplicationForm: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* RIGHT: CIRCULAR APPLICANT PHOTO (WITH PROFESSIONAL BORDER) */}
-                  <div className="w-28 shrink-0 flex flex-col items-center justify-center">
-                    {formData.applicantPhotoUrl ? (
-                      <div
-                        onClick={handleOpenLiveCameraModal}
-                        className="relative cursor-pointer group"
-                        title={language === 'mr' ? 'क्लिक करून फोटो बदला' : 'Click to change photo'}
-                      >
-                        <div className="w-20 h-20 rounded-full border-2 border-red-700 overflow-hidden bg-slate-100 flex items-center justify-center shadow-xs">
-                          <img
-                            src={formData.applicantPhotoUrl}
-                            alt="Applicant"
-                            className="w-full h-full object-cover select-none"
-                          />
+                  {/* RIGHT: APPLICANT PHOTO (TOUCHING CELL BOUNDARIES AS REQUESTED) */}
+                  <div className="w-36 shrink-0 flex flex-col items-center justify-center p-0 self-stretch">
+                    <div className="w-full h-full flex flex-col items-center justify-center border-l border-red-200">
+                      {formData.applicantPhotoUrl ? (
+                        <div
+                          onClick={handleOpenLiveCameraModal}
+                          className="relative cursor-pointer group w-full h-full"
+                          title={language === 'mr' ? 'क्लिक करून फोटो बदला' : 'Click to change photo'}
+                        >
+                          <div className="w-full h-full overflow-hidden bg-slate-100 flex items-center justify-center shadow-inner">
+                            <img
+                              src={formData.applicantPhotoUrl}
+                              alt="Applicant"
+                              className="w-full h-full object-cover select-none"
+                            />
+                          </div>
+                          <div className="print:hidden absolute bottom-1 right-1 bg-red-600 text-white p-1.5 rounded-full shadow-md hover:bg-red-700 transition-colors">
+                            <Camera className="w-4 h-4" />
+                          </div>
                         </div>
-                        <div className="print:hidden absolute bottom-0 right-0 bg-red-600 text-white p-1 rounded-full shadow-xs hover:bg-red-700 transition-colors">
-                          <Camera className="w-3 h-3" />
+                      ) : (
+                        <div
+                          onClick={handleOpenLiveCameraModal}
+                          className="w-full h-full bg-slate-50 hover:bg-red-50 transition-all flex flex-col items-center justify-center cursor-pointer group shadow-inner min-h-[140px]"
+                          title={language === 'mr' ? 'कॅमेऱ्याने थेट फोटो काढा' : 'Capture Live Photo'}
+                        >
+                          <Camera className="w-8 h-8 text-slate-400 group-hover:text-red-600 transition-colors print:hidden" />
+                          <span className="hidden print:inline text-xs font-bold text-slate-400 uppercase text-center">
+                            PHOTO
+                          </span>
                         </div>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={handleOpenLiveCameraModal}
-                        className="print:border-slate-800 w-20 h-20 rounded-full border-2 border-dashed border-slate-400 bg-slate-50 hover:bg-red-50 hover:border-red-500 transition-all flex flex-col items-center justify-center cursor-pointer group shadow-2xs"
-                        title={language === 'mr' ? 'कॅमेऱ्याने थेट फोटो काढा' : 'Capture Live Photo'}
-                      >
-                        <Camera className="w-5 h-5 text-slate-500 group-hover:text-red-600 transition-colors print:hidden" />
-                        <span className="text-[8px] font-bold text-slate-600 group-hover:text-red-600 text-center leading-tight mt-0.5 print:hidden">
-                          {language === 'mr' ? 'कॅमेरा फोटो' : 'Live Photo'}
-                        </span>
-                        <span className="hidden print:inline text-[8px] font-bold text-slate-400 uppercase text-center">
-                          PHOTO
-                        </span>
-                      </div>
-                    )}
-                    <span className="text-[9px] font-bold text-slate-900 uppercase mt-1 tracking-tight text-center">
-                      {language === 'mr' ? 'अर्जदार फोटो' : 'Applicant Photo'}
-                    </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1380,95 +1329,59 @@ export const DealerApplicationForm: React.FC = () => {
           </div>
 
           {filteredDealers.length > 0 ? (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredDealers.map((d: DealerApplication) => {
                 const isCancelled = d.status === 'cancelled';
                 return (
                   <div
                     key={d.id}
-                    className={`bg-white p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    className={`bg-white p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer group ${
                       isCancelled
-                        ? 'border-red-200/80 bg-red-50/20'
-                        : 'border-slate-200/90 hover:border-slate-300 shadow-2xs'
+                        ? 'border-red-100 bg-red-50/10'
+                        : 'border-slate-200 hover:border-red-200 hover:shadow-md'
                     }`}
+                    onClick={() => handleOpenExistingForm(d)}
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Dealer Code Tag */}
-                        <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-slate-900 text-white tracking-wider">
-                          {d.dealerCode || 'DEALER-???'}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 font-mono font-black text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 uppercase tracking-tighter whitespace-nowrap">
+                          Dealer {d.dealerCode ? d.dealerCode.split('-')[1] : '...'}
                         </span>
-
-                        <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                        <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-red-700 transition-colors">
                           {d.firmName}
-                        </span>
-
-                        {d.proprietorName && (
-                          <span className="text-slate-500 text-xs font-medium">
-                            • {d.proprietorName}
-                          </span>
-                        )}
-
-                        {/* Status Badge */}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
                         {isCancelled ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full">
-                            <Ban className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-md">
+                            <Ban className="w-2.5 h-2.5" />
                             {language === 'mr' ? 'रद्द' : 'Cancelled'}
                           </span>
                         ) : d.status === 'approved' ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
                             {language === 'mr' ? 'मंजूर' : 'Approved'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                            <Clock className="w-3 h-3" />
-                            {language === 'mr' ? 'प्रलंबित / नोंदणीकृत' : 'Registered'}
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
+                            <Clock className="w-2.5 h-2.5" />
+                            {language === 'mr' ? 'प्रलंबित' : 'Pending'}
                           </span>
                         )}
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-                        {d.shopAddress && <span className="truncate max-w-sm">{d.shopAddress}</span>}
-                        {d.district && <span>• {d.district}</span>}
-                        {d.applicationDate && <span>• दिनांक: {d.applicationDate}</span>}
-                        {d.mobile && <span className="font-mono font-medium">📱 {d.mobile}</span>}
-                      </div>
                     </div>
-
-                    {/* ACTION BUTTONS: EDIT & DELETE AS EXPLICITLY REQUESTED */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* EDIT OPTION */}
-                      <button
+                    
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
                         type="button"
-                        onClick={() => handleEditForm(d)}
-                        className="px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs whitespace-nowrap"
-                        title="माहिती एडिट करा (Edit Application)"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditForm(d);
+                        }}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{language === 'mr' ? 'एडिट' : 'Edit'}</span>
-                      </button>
-
-                      {/* DELETE OPTION */}
-                      <button
-                        type="button"
-                        onClick={() => setDealerToDelete(d)}
-                        className="px-2.5 py-1.5 text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs whitespace-nowrap"
-                        title="अर्ज डिलीट करा (Delete Application)"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                        <span>{language === 'mr' ? 'डिलीट' : 'Delete'}</span>
-                      </button>
-
-                      {/* VIEW / PRINT FORM */}
-                      <button
-                        type="button"
-                        onClick={() => handleOpenExistingForm(d)}
-                        className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap"
-                        title="फॉर्म पहा व प्रिंट करा"
-                      >
-                        <Printer className="w-3.5 h-3.5 text-slate-600" />
-                        <span>{language === 'mr' ? 'प्रिंट' : 'Print'}</span>
+                        <Edit3 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
