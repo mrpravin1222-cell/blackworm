@@ -54,7 +54,6 @@ export const Header: React.FC = React.memo(() => {
 
   const navItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }>; badge?: number; hasUpdate?: boolean }[] = [
     { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'daily-activity', labelMr: 'दैनिक कामकाज', labelEn: 'Daily Activity', icon: CalendarCheck2, hasUpdate: true },
     { id: 'target-sheet', labelMr: 'टार्गेट सीट', labelEn: 'Target Sheet', icon: Target, hasUpdate: true },
     { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
     { id: 'order-collection', labelMr: 'ऑर्डर आणि कलेक्शन', labelEn: 'Order & Collection', icon: Receipt, hasUpdate: true },

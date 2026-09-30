@@ -262,16 +262,17 @@ export const UserManagement: React.FC = () => {
         cleanPass === 'Blackworm'
       );
 
-      // Strict check against registered users & master admin credentials
+      // Strict exact check against registered users & master admin credentials
       let user = users.find(u => {
         const uLogin = (u.loginId || '').trim().toLowerCase();
         const uEmail = (u.email || '').trim().toLowerCase();
         const uPhone = (u.phone || '').trim().toLowerCase();
         const uPass = (u.password || '').trim();
 
+        // Exact match required on Login ID / Email / Phone AND Password
         const matchId = (uLogin === cleanId) || 
                         (uEmail === cleanId) || 
-                        (uPhone && cleanId.includes(uPhone));
+                        (uPhone === cleanId);
 
         const matchPass = (uPass === cleanPass);
 

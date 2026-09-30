@@ -176,8 +176,6 @@ const MainContent: React.FC = () => {
         return <UserManagement />;
       case 'order-collection':
         return <OrderCollection />;
-      case 'daily-activity':
-        return <DailyActivityLog />;
       default:
         return <Dashboard />;
     }
@@ -185,7 +183,6 @@ const MainContent: React.FC = () => {
 
   const mobileBottomNavItems = [
     { id: 'dashboard' as const, labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'daily-activity' as const, labelMr: 'दैनिक कामकाज', labelEn: 'Activities', icon: CalendarCheck2 },
     { id: 'order-collection' as const, labelMr: 'ऑर्डर व वसुली', labelEn: 'Orders', icon: Receipt },
     { id: 'target-sheet' as const, labelMr: 'टार्गेट', labelEn: 'Targets', icon: Target },
     { id: 'settings' as const, labelMr: 'सेटिंग', labelEn: 'Settings', icon: Menu },
@@ -208,7 +205,7 @@ const MainContent: React.FC = () => {
         id="mobile-bottom-app-bar"
         className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg md:hidden"
       >
-        <div className="grid grid-cols-5 h-14">
+        <div className="grid grid-cols-4 h-14">
           {mobileBottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

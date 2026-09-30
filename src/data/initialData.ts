@@ -40,7 +40,6 @@ export const initialUsers: User[] = [
     territory: 'Tasgaon Zone',
     allowedTabs: [
       'dashboard',
-      'daily-activity',
       'target-sheet',
       'order-collection',
       'price-list',

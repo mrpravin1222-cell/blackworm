@@ -1,7 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // Default catch-all rule
     match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User Accounts & Authentication Profiles
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Dealer Applications & Registrations
+    match /dealerApplications/{dealerId} {
+      allow read, write: if true;
+    }
+
+    // Sales Orders & Invoices
+    match /dealerOrders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Payment Collections & Receipts
+    match /dealerCollections/{collectionId} {
+      allow read, write: if true;
+    }
+
+    // Travel Sheets & Allowance Claims
+    match /travelSheets/{sheetId} {
+      allow read, write: if true;
+    }
+
+    // Target Sheets & Achievements
+    match /targetSheets/{targetId} {
+      allow read, write: if true;
+    }
+
+    // Product Price List
+    match /priceList/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Promotional Schemes
+    match /schemes/{schemeId} {
+      allow read, write: if true;
+    }
+
+    // Company Master & Banking Details
+    match /companyDetails/{docId} {
+      allow read, write: if true;
+    }
+
+    // System Settings & Logs
+    match /appSettings/{docId} {
+      allow read, write: if true;
+    }
+
+    match /activityLogs/{logId} {
       allow read, write: if true;
     }
   }
