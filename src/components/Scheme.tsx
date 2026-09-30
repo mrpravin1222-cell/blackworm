@@ -32,47 +32,7 @@ interface SchemeItem {
 export const Scheme: React.FC = () => {
   const { language, currentUser } = useApp();
 
-  const [schemes, setSchemes] = useState<SchemeItem[]>([
-    {
-      id: 'SCH-01',
-      titleMr: 'खरीप महा-धमाका: १० बॅगवर १ बॅग मोफत',
-      titleEn: 'Kharif Special: Buy 10 Bags Get 1 Free',
-      type: 'free_product',
-      descriptionMr: 'ब्लॅकवर्म सेंद्रिय गांडूळखत ५० किलोच्या १० बॅगच्या एकाच ऑर्डरवर १ बॅग मोफत दिली जाईल.',
-      descriptionEn: 'Order 10 bags of Blackworm Vermicompost 50kg and receive 1 bag completely free.',
-      validFrom: '2026-06-01',
-      validTill: '2026-10-31',
-      eligibility: 'सर्व अधिकृत डीलर व कृषी सेवा केंद्र',
-      badge: '१० + १ मोफत',
-      isActive: true,
-    },
-    {
-      id: 'SCH-02',
-      titleMr: 'व्हर्मी-वॉश ५ लिटर कॉम्बो डिस्काउंट १५%',
-      titleEn: 'Vermi-Wash 5L Liquid Combo 15% Off',
-      type: 'cash_discount',
-      descriptionMr: '५ बॉटल्स किंवा त्याहून अधिक खरेदीवर थेट १५% रोख सवलत लागू होईल.',
-      descriptionEn: 'Flat 15% discount on purchase of 5 or more Vermi-Wash bottles.',
-      validFrom: '2026-08-01',
-      validTill: '2026-09-30',
-      eligibility: 'सर्व ग्राहक आणि डीलर',
-      badge: '१५% सूट',
-      isActive: true,
-    },
-    {
-      id: 'SCH-03',
-      titleMr: 'मासिक टार्गेट अचिव्हमेंट रोख बोनस (₹५०००)',
-      titleEn: 'Monthly Target Overachiever Bonus (₹5,000)',
-      type: 'turnover_bonus',
-      descriptionMr: 'ज्या डीलरची मासिक उलाढाल २ लाख रुपयांपेक्षा जास्त होईल त्यांना अतिरिक्त ₹५००० थेट क्रेडिट किंवा उत्पादने दिली जातील.',
-      descriptionEn: 'Dealers achieving monthly turnover exceeding ₹2 Lakh get ₹5,000 credit bonus.',
-      validFrom: '2026-09-01',
-      validTill: '2026-12-31',
-      eligibility: 'नोंदणीकृत डीलर नेटवर्क',
-      badge: '₹५,००० बोनस',
-      isActive: true,
-    },
-  ]);
+  const [schemes, setSchemes] = useState<SchemeItem[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
@@ -153,54 +113,68 @@ export const Scheme: React.FC = () => {
         </div>
       </div>
 
-      {/* Scheme Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {schemes.map((sch) => (
-          <div
-            key={sch.id}
-            className="bg-white rounded-2xl border border-slate-200 shadow-2xs hover:shadow-md transition-all p-5 flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
-                <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
-                  {sch.badge}
-                </span>
-                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Active
-                </span>
-              </div>
+      {/* Scheme Cards Grid or Empty State */}
+      {schemes.length === 0 ? (
+        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 mx-auto flex items-center justify-center">
+            <Gift className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800">
+            {language === 'mr' ? 'सध्या कोणतीही स्कीम उपलब्ध नाही' : 'No Active Schemes Currently'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {language === 'mr' ? 'नवीन स्कीम ॲड करण्यासाठी वर दिलेल्या "+ नवीन स्कीम" बटणावर क्लिक करा.' : 'Click on "+ Create Scheme" button above to add new schemes.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {schemes.map((sch) => (
+            <div
+              key={sch.id}
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xs hover:shadow-md transition-all p-5 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+                  <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+                    {sch.badge}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Active
+                  </span>
+                </div>
 
-              <div className="mt-3">
-                <h3 className="font-bold text-slate-900 text-sm leading-snug">
-                  {sch.titleMr}
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">{sch.titleEn}</p>
+                <div className="mt-3">
+                  <h3 className="font-bold text-slate-900 text-sm leading-snug">
+                    {sch.titleMr}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{sch.titleEn}</p>
 
-                <p className="text-xs text-slate-600 mt-3 leading-relaxed bg-slate-50 p-3 rounded-xl">
-                  {sch.descriptionMr}
-                </p>
+                  <p className="text-xs text-slate-600 mt-3 leading-relaxed bg-slate-50 p-3 rounded-xl">
+                    {sch.descriptionMr}
+                  </p>
 
-                <div className="mt-3 space-y-1.5 text-[11px] text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>मुदत: {sch.validFrom} ते <strong>{sch.validTill}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>पात्रता: {sch.eligibility}</span>
+                  <div className="mt-3 space-y-1.5 text-[11px] text-slate-500">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span>मुदत: {sch.validFrom} ते <strong>{sch.validTill}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>पात्रता: {sch.eligibility}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
-              <span>स्कीम क्र.: {sch.id}</span>
-              <span className="text-purple-600 font-semibold">Blackworm Agritech</span>
+              <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
+                <span>स्कीम क्र.: {sch.id}</span>
+                <span className="text-purple-600 font-semibold">Blackworm Agritech</span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Add Scheme Modal */}
       {isModalOpen && (

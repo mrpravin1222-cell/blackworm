@@ -31,92 +31,21 @@ import {
 } from 'lucide-react';
 
 const ACTIVITY_TYPE_CONFIG: Record<
-  ActivityType,
+  string,
   { labelMr: string; labelEn: string; color: string; bg: string; border: string }
-> = {
-  dealer_visit: {
-    labelMr: 'डीलर भेट (Dealer Visit)',
-    labelEn: 'Dealer Visit',
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-  },
-  farmer_meeting: {
-    labelMr: 'शेतकरी सभा (Farmer Meeting)',
-    labelEn: 'Farmer Meeting',
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-  },
-  site_demo: {
-    labelMr: 'शेतावर प्रात्यक्षिक (Site Demo)',
-    labelEn: 'Site Demo',
-    color: 'text-purple-700',
-    bg: 'bg-purple-50',
-    border: 'border-purple-200',
-  },
-  collection_followup: {
-    labelMr: 'वसुली भेट (Collection Follow-up)',
-    labelEn: 'Collection Follow-up',
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-  },
-  new_dealer_prospect: {
-    labelMr: 'नवीन डीलर शोध (New Prospect)',
-    labelEn: 'New Dealer Prospect',
-    color: 'text-indigo-700',
-    bg: 'bg-indigo-50',
-    border: 'border-indigo-200',
-  },
-  crop_inspection: {
-    labelMr: 'पीक पाहणी (Crop Inspection)',
-    labelEn: 'Crop Inspection',
-    color: 'text-teal-700',
-    bg: 'bg-teal-50',
-    border: 'border-teal-200',
-  },
-  recovery_visit: {
-    labelMr: 'थकबाकी वसुली (Recovery Visit)',
-    labelEn: 'Recovery Visit',
-    color: 'text-rose-700',
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
-  },
-  office_work: {
-    labelMr: 'ऑफिस काम (Office Work)',
-    labelEn: 'Office Work',
-    color: 'text-slate-700',
-    bg: 'bg-slate-50',
-    border: 'border-slate-200',
-  },
-  other: {
-    labelMr: 'इतर कामकाज (Other)',
-    labelEn: 'Other Activity',
-    color: 'text-zinc-700',
-    bg: 'bg-zinc-50',
-    border: 'border-zinc-200',
-  },
+> = {};
+
+const DEFAULT_TYPE_CONFIG = {
+  labelMr: 'कामकाज नोंद',
+  labelEn: 'Activity',
+  color: 'text-slate-700',
+  bg: 'bg-slate-50',
+  border: 'border-slate-200',
 };
 
-const COMMON_CROPS = [
-  'द्राक्ष (Grapes)',
-  'ऊस (Sugarcane)',
-  'डाळिंब (Pomegranate)',
-  'हळद (Turmeric)',
-  'केळी (Banana)',
-  'सोयाबीन (Soyabean)',
-  'मका (Maize)',
-  'भाजीपाला (Vegetables)',
-];
+const COMMON_CROPS: string[] = [];
 
-const COMMON_PRODUCTS = [
-  'ब्लॅकवर्म प्रीमियम गांडूळखत ५०kg',
-  'ब्लॅकवर्म प्रीमियम गांडूळखत ४०kg',
-  'व्हर्मी-वॉश टॉनिक',
-  'ऑर्गॅनिक पोटॅश',
-  'सॉईल कंडिशनर',
-];
+const COMMON_PRODUCTS: string[] = [];
 
 const getTodayDateStr = (): string => {
   const now = new Date();
@@ -144,11 +73,7 @@ export const DailyActivityLog: React.FC = React.memo(() => {
   const isAdmin = currentUser
     ? currentUser.role === 'admin' ||
       currentUser.loginId === 'admin' ||
-      currentUser.loginId === 'pravin' ||
-      currentUser.id === 'USR-001' ||
-      currentUser.id === 'USR-PRAVIN' ||
-      (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('pravin') || currentUser.fullName.toLowerCase().includes('shinde') || currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('shridhar'))) ||
-      (currentUser.name && (currentUser.name.toLowerCase().includes('pravin') || currentUser.name.toLowerCase().includes('shinde') || currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('shridhar')))
+      currentUser.loginId === 'pravin waghmare'
     : false;
 
   // Filter states - Default to 'all' so entries from all devices and dates are immediately visible
@@ -817,7 +742,7 @@ export const DailyActivityLog: React.FC = React.memo(() => {
           </div>
         ) : (
           filteredActivities.map((act) => {
-            const typeCfg = ACTIVITY_TYPE_CONFIG[act.activityType] || ACTIVITY_TYPE_CONFIG.other;
+            const typeCfg = ACTIVITY_TYPE_CONFIG[act.activityType] || DEFAULT_TYPE_CONFIG;
 
             return (
               <div
@@ -1142,25 +1067,35 @@ export const DailyActivityLog: React.FC = React.memo(() => {
                 <label className="block text-slate-600 font-bold mb-1.5">
                   {language === 'mr' ? 'कामकाज प्रकार (Activity Type)*' : 'Activity Type*'}
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {Object.entries(ACTIVITY_TYPE_CONFIG).map(([typeKey, cfg]) => {
-                    const isSelected = formType === typeKey;
-                    return (
-                      <button
-                        key={`form-type-${typeKey}`}
-                        type="button"
-                        onClick={() => setFormType(typeKey as ActivityType)}
-                        className={`px-3 py-2 rounded-xl text-left font-bold transition-all border text-xs cursor-pointer ${
-                          isSelected
-                            ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        {language === 'mr' ? cfg.labelMr.split('(')[0] : cfg.labelEn}
-                      </button>
-                    );
-                  })}
-                </div>
+                {Object.keys(ACTIVITY_TYPE_CONFIG).length === 0 ? (
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold flex items-center justify-between">
+                    <span>
+                      {language === 'mr'
+                        ? 'सर्व जुने पर्याय हटवले आहेत. तुम्ही जे नवीन पर्याय सांगाल ते इथे जोडले जातील.'
+                        : 'All old options removed. Ready for your new custom options.'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {Object.entries(ACTIVITY_TYPE_CONFIG).map(([typeKey, cfg]) => {
+                      const isSelected = formType === typeKey;
+                      return (
+                        <button
+                          key={`form-type-${typeKey}`}
+                          type="button"
+                          onClick={() => setFormType(typeKey as ActivityType)}
+                          className={`px-3 py-2 rounded-xl text-left font-bold transition-all border text-xs cursor-pointer ${
+                            isSelected
+                              ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {language === 'mr' ? cfg.labelMr.split('(')[0] : cfg.labelEn}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Registered Dealer (Optional selector) */}

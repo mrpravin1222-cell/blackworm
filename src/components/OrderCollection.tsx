@@ -57,13 +57,7 @@ export const OrderCollection: React.FC = React.memo(() => {
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
     currentUser.loginId === 'admin' ||
-    currentUser.loginId === 'pravin' ||
-    currentUser.id === 'USR-001' ||
-    currentUser.id === 'USR-PRAVIN' ||
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('pravin') || 
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shinde') ||
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shreedhar') ||
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shridhar')
+    currentUser.loginId === 'pravin waghmare'
   ) : false;
 
   // Visible orders based on officer role

@@ -20,7 +20,7 @@ export const ALL_NAV_MODULES: ModulePermissionOption[] = [
   { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Setting' },
 ];
 
-// Allowed tabs for all users EXCEPT Pravin Waghmare & Shreedhar Shinde
+// Fallback allowed tabs if allowedTabs is not set on older user records
 export const STANDARD_USER_ALLOWED_TABS: NavTab[] = [
   'dashboard',
   'target-sheet',
@@ -29,37 +29,37 @@ export const STANDARD_USER_ALLOWED_TABS: NavTab[] = [
   'settings',
 ];
 
-export const isPravinOrShreedharUser = (user: User | null): boolean => {
+export const isPravinUser = (user: User | null): boolean => {
   if (!user) return false;
   const safeLoginId = (user.loginId || '').toLowerCase().trim();
-  const safeName = (user.fullName || user.name || '').toLowerCase().trim();
-  const safeId = (user.id || '').toUpperCase().trim();
 
-  return (
-    safeLoginId === 'pravin' ||
-    safeLoginId === 'admin' ||
-    safeLoginId === 'shridhar' ||
-    safeLoginId === 'shreedhar' ||
-    safeId === 'USR-PRAVIN' ||
-    safeId === 'USR-001' ||
-    safeName.includes('pravin') ||
-    safeName.includes('waghmare') ||
-    safeName.includes('shreedhar') ||
-    safeName.includes('shridhar') ||
-    safeName.includes('shinde')
-  );
+  // ONLY master admin login OR user with role === 'admin' is super admin!
+  return user.role === 'admin' || safeLoginId === 'pravin waghmare' || safeLoginId === 'admin';
 };
+
+// Backwards compatibility alias
+export const isPravinOrShreedharUser = isPravinUser;
 
 export const isTabAllowedForUser = (tabId: NavTab, user: User | null): boolean => {
   if (!user || user.id === 'GUEST') {
     return tabId === 'dashboard' || tabId === 'user-management';
   }
 
-  // Pravin Waghmare & Shreedhar Shinde ALWAYS have 100% full access to all tabs & features
-  if (isPravinOrShreedharUser(user)) {
+  // Pravin Waghmare ALWAYS has 100% full access to all tabs & features
+  if (isPravinUser(user)) {
     return true;
   }
 
-  // All other users get strictly: Dashboard, Target Sheet, Dealer, Travel, Settings
+  // Always allow Dashboard so the user can access their main dashboard view
+  if (tabId === 'dashboard') {
+    return true;
+  }
+
+  // Strictly respect the allowedTabs assigned by Pravin Waghmare in User Management
+  if (user.allowedTabs && Array.isArray(user.allowedTabs)) {
+    return user.allowedTabs.includes(tabId);
+  }
+
+  // Fallback default permissions if allowedTabs is undefined
   return STANDARD_USER_ALLOWED_TABS.includes(tabId);
 };

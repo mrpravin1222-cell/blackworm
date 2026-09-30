@@ -32,9 +32,8 @@ export const TravelingExpenses: React.FC = React.memo(() => {
 
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('pravin') || 
-    (currentUser.name || currentUser.fullName || '').toLowerCase().includes('shinde') || 
-    currentUser.id === 'USR-001'
+    currentUser.loginId === 'admin' ||
+    currentUser.loginId === 'pravin waghmare'
   ) : false;
   const monthInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -50,12 +49,32 @@ export const TravelingExpenses: React.FC = React.memo(() => {
     }
   };
 
+  // Filter out Shreedhar Balkrishna Shinde from Travel Sheet
+  const travelUsers = React.useMemo(() => {
+    return users.filter((u) => {
+      const name = (u.fullName || u.name || '').toLowerCase();
+      const login = (u.loginId || '').toLowerCase();
+      return !(
+        name.includes('shreedhar') ||
+        name.includes('shridhar') ||
+        name.includes('shinde') ||
+        login.includes('shridhar') ||
+        login.includes('shreedhar')
+      );
+    });
+  }, [users]);
+
   // --- MONTHLY A4 TRAVEL SHEET STATE PER USER & MONTH ---
-  const [selectedUserId, setSelectedUserId] = useState<string>(currentUser?.id || 'USR-001');
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    if (currentUser && !currentUser.fullName?.toLowerCase().includes('shinde')) {
+      return currentUser.id;
+    }
+    return travelUsers[0]?.id || 'USR-001';
+  });
   const [selectedMonthYear, setSelectedMonthYear] = useState<string>(getCurrentMonthYear());
 
   // Active target user
-  const activeUser = users.find((u) => u.id === selectedUserId) || currentUser || users[0];
+  const activeUser = travelUsers.find((u) => u.id === selectedUserId) || travelUsers[0] || currentUser || users[0];
 
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
@@ -98,7 +117,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
 
   // Helper to load sheet data for specific user & month
   const loadSheetData = (userId: string, monthYear: string) => {
-    const targetUser = users.find((u) => u.id === userId) || currentUser || users[0];
+    const targetUser = travelUsers.find((u) => u.id === userId) || travelUsers[0] || currentUser || users[0];
     const sheetKey = `${userId}_${monthYear}`;
     const storageKey = `blackworm_travel_sheet_${sheetKey}`;
     
@@ -143,14 +162,14 @@ export const TravelingExpenses: React.FC = React.memo(() => {
 
   // Switch sheet whenever selectedUserId, selectedMonthYear or travelSheets change from cloud
   useEffect(() => {
-    // If selected user was deleted, switch to first available user
-    if (users.length > 0 && !users.some((u) => u.id === selectedUserId)) {
-      const fallbackId = (currentUser && users.some((u) => u.id === currentUser.id)) ? currentUser.id : users[0].id;
+    // If selected user was deleted or excluded, switch to first available travel user
+    if (travelUsers.length > 0 && !travelUsers.some((u) => u.id === selectedUserId)) {
+      const fallbackId = (currentUser && travelUsers.some((u) => u.id === currentUser.id)) ? currentUser.id : travelUsers[0]?.id || 'USR-001';
       setSelectedUserId(fallbackId);
       return;
     }
     loadSheetData(selectedUserId, selectedMonthYear);
-  }, [selectedUserId, selectedMonthYear, users, currentUser, travelSheets]);
+  }, [selectedUserId, selectedMonthYear, travelUsers, currentUser, travelSheets]);
 
   // Ensure non-admin users cannot switch away from currentUser.id
   useEffect(() => {
@@ -465,7 +484,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
                   onChange={(e) => handleUserSelect(e.target.value)}
                   className="px-2.5 py-1.5 rounded-xl border border-amber-400 font-black text-xs sm:text-sm focus:border-amber-600 focus:outline-hidden bg-amber-50 text-slate-950 flex-1 min-w-0 cursor-pointer shadow-2xs truncate"
                 >
-                  {users.map((u) => (
+                  {travelUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.fullName || u.name}
                     </option>

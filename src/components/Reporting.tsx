@@ -75,19 +75,13 @@ export const Reporting: React.FC = React.memo(() => {
   const isAdmin = currentUser
     ? currentUser.role === 'admin' ||
       currentUser.loginId === 'admin' ||
-      currentUser.loginId === 'pravin' ||
-      currentUser.id === 'USR-001' ||
-      currentUser.id === 'USR-PRAVIN' ||
-      (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('pravin'))) ||
-      (currentUser.name && (currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('pravin')))
+      currentUser.loginId === 'pravin waghmare'
     : false;
 
-  // View Mode: 'all_officers_daily' (Master Daily Track Report) vs 'single_officer_detailed'
-  const [reportViewMode, setReportViewMode] = useState<'all_officers_daily' | 'single_officer_detailed'>(() => {
-    return isAdmin ? 'all_officers_daily' : 'single_officer_detailed';
-  });
+  // View Mode: 'all_officers_daily' (Master Daily Track Report)
+  const [reportViewMode, setReportViewMode] = useState<'all_officers_daily' | 'single_officer_detailed'>('all_officers_daily');
 
-  // Selected Date for All Officers Daily Master Report (Default to current date, e.g. 2026-09-25)
+  // Selected Date for All Officers Daily Master Report (Default to current date)
   const [selectedDailyDate, setSelectedDailyDate] = useState<string>(() => {
     return getTodayDateStr();
   });
@@ -433,9 +427,26 @@ export const Reporting: React.FC = React.memo(() => {
     };
   };
 
-  // Master Data for ALL OFFICERS on Selected Date (NO FILTERING OUT - SHOW EVERY OFFICER)
+  const isShreedharShindeUser = (u: User): boolean => {
+    if (!u) return false;
+    const name = (u.fullName || u.name || '').toLowerCase();
+    const login = (u.loginId || '').toLowerCase();
+    return (
+      name.includes('shreedhar') ||
+      name.includes('shridhar') ||
+      name.includes('shinde') ||
+      login.includes('shridhar') ||
+      login.includes('shreedhar')
+    );
+  };
+
+  const reportUsers = useMemo(() => {
+    return users.filter((u) => !isShreedharShindeUser(u));
+  }, [users]);
+
+  // Master Data for ALL OFFICERS on Selected Date
   const allOfficersDailyReport = useMemo(() => {
-    return users.map((officer) => {
+    return reportUsers.map((officer) => {
       const travel = getOfficerDailyTravelData(officer, selectedDailyDate);
       const metrics = computeOfficerTargetMetrics(officer, selectedDailyDate);
       const collections = getOfficerDailyCollections(officer, selectedDailyDate);
@@ -458,7 +469,7 @@ export const Reporting: React.FC = React.memo(() => {
         todayOrdersTotal,
       };
     });
-  }, [users, selectedDailyDate, targets, dealerOrders, dealerCollections, dailyActivities, travelExpenses, travelSheets]);
+  }, [reportUsers, selectedDailyDate, targets, dealerOrders, dealerCollections, dailyActivities, travelExpenses, travelSheets]);
 
   // Master Summary KPIs for Selected Date
   const masterDailyKPIs = useMemo(() => {
@@ -621,14 +632,10 @@ export const Reporting: React.FC = React.memo(() => {
         <CompanyLetterhead showBankDetails={false} />
         <div className="text-center my-4 border-b pb-2 border-slate-300">
           <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900">
-            {reportViewMode === 'all_officers_daily'
-              ? `सर्व अधिकाऱ्यांचा दैनिक ट्रॅक, किलोमीटर, वसुली व टार्गेट अहवाल (${selectedDailyDate})`
-              : `अधिकारी दैनिक मार्ग, टार्गेट अचिव्हमेंट व बॅकलॉग अहवाल (${selectedMonthYear})`}
+            {`All Officer Daily Track Report (${selectedDailyDate})`}
           </h2>
           <p className="text-xs font-bold text-slate-700 mt-1">
-            {reportViewMode === 'all_officers_daily'
-              ? `एकूण अधिकारी: ${masterDailyKPIs.totalOfficers} | तारीख: ${selectedDailyDate}`
-              : `अधिकारी: ${activeOfficer?.fullName || activeOfficer?.name} | महिना: ${selectedMonthYear}`}
+            {`एकूण अधिकारी: ${masterDailyKPIs.totalOfficers} | तारीख: ${selectedDailyDate}`}
           </p>
         </div>
       </div>
@@ -642,13 +649,8 @@ export const Reporting: React.FC = React.memo(() => {
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                {language === 'mr' ? 'ऑफिसर डेली ट्रॅक व टार्गेट अहवाल' : 'Officer Daily Track & Target Report'}
+                Officer Daily Track Report
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                {isAdmin
-                  ? 'प्रत्येक अधिकाऱ्याचा दैनिक रोड, ओपनिंग/क्लोजिंग किलोमीटर, पार्टी-वाईज वसुली व टार्गेट शीट प्रगती'
-                  : 'माझा दैनिक प्रवास मार्ग, ओपनिंग/क्लोजिंग किमी, पार्टी-वाईज वसुली व टार्गेट प्रगती'}
-              </p>
             </div>
           </div>
 
@@ -680,161 +682,72 @@ export const Reporting: React.FC = React.memo(() => {
             </button>
 
             <PrintActions
-              elementId={reportViewMode === 'all_officers_daily' ? 'all-officers-report' : 'single-officer-report'}
-              title={reportViewMode === 'all_officers_daily' ? 'All Officers Master Daily Track Report' : `Full Report - ${activeOfficer?.fullName || activeOfficer?.name}`}
-              landscape={reportViewMode === 'all_officers_daily'}
+              elementId="all-officers-report"
+              title="All Officer Daily Track Report"
+              landscape={true}
             />
-
-            {reportViewMode === 'single_officer_detailed' && activeOfficer && (
-              <button
-                type="button"
-                onClick={() => {
-                  exportElementToPDF('single-officer-report', `Full_Report_${activeOfficer.fullName || activeOfficer.name}_${selectedMonthYear}`, { 
-                    orientation: 'portrait', 
-                    scale: 2 
-                  });
-                }}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer"
-              >
-                <FileDown className="w-4 h-4" />
-                <span>{language === 'mr' ? 'अहवाल डाउनलोड करा' : 'Download Full Report'}</span>
-              </button>
-            )}
           </div>
         </div>
 
-        {/* View Mode Toggle Bar (Visible for Admin) */}
-        {isAdmin && (
-          <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-200/80 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => setReportViewMode('all_officers_daily')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                reportViewMode === 'all_officers_daily'
-                  ? 'bg-red-600 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>{language === 'mr' ? 'सर्व अधिकाऱ्यांचा डेली ट्रॅक रिपोर्ट' : 'All Officers Daily Track'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setReportViewMode('single_officer_detailed')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                reportViewMode === 'single_officer_detailed'
-                  ? 'bg-red-600 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <UserIcon className="w-4 h-4" />
-              <span>{language === 'mr' ? 'वैयक्तिक अधिकारी अहवाल' : 'Single Officer Report'}</span>
-            </button>
-          </div>
-        )}
-
-        {/* Filters Bar depending on View Mode */}
-        {reportViewMode === 'all_officers_daily' ? (
-          <div className="space-y-3 pt-3 border-t border-slate-100">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Daily Date Selector */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                  {language === 'mr' ? 'रिपोर्ट तारीख निवडा (Select Date)' : 'Select Track Date'}
-                </label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="date"
-                    value={selectedDailyDate}
-                    onChange={(e) => setSelectedDailyDate(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-red-500 transition-all font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* KPI 1: Active Field Officers */}
-              <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-                <Compass className="w-5 h-5 text-red-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    {language === 'mr' ? 'एकूण अधिकारी ऑन-फील्ड' : 'Active Field Officers'}
-                  </span>
-                  <span className="text-sm font-black text-slate-900 font-mono">
-                    {masterDailyKPIs.activeOfficersCount} / {masterDailyKPIs.totalOfficers} {language === 'mr' ? 'अधिकारी' : 'Officers'}
-                  </span>
-                </div>
-              </div>
-
-              {/* KPI 2: Total Km Today */}
-              <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-                <Car className="w-5 h-5 text-blue-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    {language === 'mr' ? 'आजचे एकूण किलोमीटर' : 'Total KM Today'}
-                  </span>
-                  <span className="text-sm font-black text-blue-700 font-mono">
-                    {masterDailyKPIs.totalKmToday} km
-                  </span>
-                </div>
-              </div>
-
-              {/* KPI 3: Today's Collection */}
-              <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-                <IndianRupee className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    {language === 'mr' ? 'आजचे एकूण जमा कलेक्शन' : "Today's Total Collection"}
-                  </span>
-                  <span className="text-sm font-black text-emerald-700 font-mono">
-                    ₹{masterDailyKPIs.totalCollectionToday.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t border-slate-100">
-            {/* Officer Selector (Only enabled for Admin) */}
+        {/* Filters Bar */}
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Daily Date Selector */}
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                {language === 'mr' ? 'अधिकारी निवडा (Select Officer)' : 'Select Officer'}
-              </label>
-              <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <select
-                  value={selectedOfficerId}
-                  onChange={(e) => setSelectedOfficerId(e.target.value)}
-                  disabled={!isAdmin}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-red-500 transition-all disabled:opacity-80"
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName || u.name} ({u.designation || u.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Month Selector */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                {language === 'mr' ? 'महिना व वर्ष (Select Month)' : 'Select Month'}
+                {language === 'mr' ? 'रिपोर्ट तारीख निवडा (Select Date)' : 'Select Track Date'}
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="month"
-                  value={selectedMonthYear}
-                  onChange={(e) => setSelectedMonthYear(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-red-500 transition-all"
+                  type="date"
+                  value={selectedDailyDate}
+                  onChange={(e) => setSelectedDailyDate(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-red-500 transition-all font-mono"
                 />
               </div>
             </div>
+
+            {/* KPI 1: Active Field Officers */}
+            <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+              <Compass className="w-5 h-5 text-red-600 shrink-0" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  {language === 'mr' ? 'एकूण अधिकारी ऑन-फील्ड' : 'Active Field Officers'}
+                </span>
+                <span className="text-sm font-black text-slate-900 font-mono">
+                  {masterDailyKPIs.activeOfficersCount} / {masterDailyKPIs.totalOfficers} {language === 'mr' ? 'अधिकारी' : 'Officers'}
+                </span>
+              </div>
+            </div>
+
+            {/* KPI 2: Total Km Today */}
+            <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+              <Car className="w-5 h-5 text-blue-600 shrink-0" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  {language === 'mr' ? 'आजचे एकूण किलोमीटर' : 'Total KM Today'}
+                </span>
+                <span className="text-sm font-black text-blue-700 font-mono">
+                  {masterDailyKPIs.totalKmToday} km
+                </span>
+              </div>
+            </div>
+
+            {/* KPI 3: Today's Collection */}
+            <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+              <IndianRupee className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  {language === 'mr' ? 'आजचे एकूण जमा कलेक्शन' : "Today's Total Collection"}
+                </span>
+                <span className="text-sm font-black text-emerald-700 font-mono">
+                  ₹{masterDailyKPIs.totalCollectionToday.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ================= VIEW 1: ALL OFFICERS DAILY MASTER REPORT (ADMIN / ALL OFFICERS VIEW) ================= */}
@@ -847,8 +760,8 @@ export const Reporting: React.FC = React.memo(() => {
                 <Users className="w-5 h-5 text-red-500" />
                 <h2 className="text-sm font-bold uppercase tracking-wider">
                   {language === 'mr'
-                    ? `सर्व अधिकाऱ्यांचा दैनिक ट्रॅक, किलोमीटर, जमा वसुली व टार्गेट शीट रिपोर्ट (${selectedDailyDate})`
-                    : `All Officers Daily Track, Route, KM, Collection & Target Sheet Report (${selectedDailyDate})`}
+                    ? `ऑल ऑफिसर डेली ट्रॅक रिपोर्ट (${selectedDailyDate})`
+                    : `All Officer Daily Track Report (${selectedDailyDate})`}
                 </h2>
               </div>
               <span className="text-xs text-slate-300 font-bold font-mono">
@@ -871,7 +784,6 @@ export const Reporting: React.FC = React.memo(() => {
                     <th className="py-2.5 px-3 border-r border-slate-300 text-right min-w-[130px]">{language === 'mr' ? 'टार्गेट सीट टार्गेट (MTD)' : 'MTD Target (Sheet)'}</th>
                     <th className="py-2.5 px-3 border-r border-slate-300 text-right min-w-[130px]">{language === 'mr' ? 'एकूण जमा कलेक्शन (MTD)' : 'MTD Total Collection'}</th>
                     <th className="py-2.5 px-3 border-r border-slate-300 text-right min-w-[130px] bg-red-100/50 text-red-900">{language === 'mr' ? 'टार्गेट शार्टफॉल / बॅकलॉग' : 'Target Backlog'}</th>
-                    <th className="py-2.5 px-3 text-center min-w-[80px] print:hidden">कृती</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -977,22 +889,6 @@ export const Reporting: React.FC = React.memo(() => {
                             <span className="text-red-700 font-black">₹{m.backlogRs.toLocaleString('en-IN')}</span>
                           )}
                         </td>
-
-                        {/* View Officer Details Button */}
-                        <td className="py-2.5 px-3 text-center print:hidden">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedOfficerId(u.id);
-                              setReportViewMode('single_officer_detailed');
-                            }}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-red-600 hover:text-white text-slate-700 font-bold rounded-lg transition-all text-[11px] inline-flex items-center gap-1 cursor-pointer"
-                            title="पहा"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>पहा</span>
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
@@ -1019,7 +915,6 @@ export const Reporting: React.FC = React.memo(() => {
                     <td className="py-3 px-3 text-right font-mono text-red-400 text-sm">
                       {masterDailyKPIs.totalBacklogOverall > 0 ? `₹${masterDailyKPIs.totalBacklogOverall.toLocaleString('en-IN')}` : '₹0'}
                     </td>
-                    <td className="print:hidden"></td>
                   </tr>
                 </tfoot>
               </table>

@@ -84,11 +84,7 @@ export const UserManagement: React.FC = () => {
   const isAdmin = currentUser && (
     currentUser.role === 'admin' ||
     currentUser.loginId === 'admin' || 
-    currentUser.loginId === 'pravin' ||
-    currentUser.id === 'USR-001' ||
-    currentUser.id === 'USR-PRAVIN' ||
-    (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('shridhar') || currentUser.fullName.toLowerCase().includes('shinde') || currentUser.fullName.toLowerCase().includes('pravin'))) ||
-    (currentUser.name && (currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('shridhar') || currentUser.name.toLowerCase().includes('shinde') || currentUser.name.toLowerCase().includes('pravin')))
+    currentUser.loginId === 'pravin waghmare'
   );
 
   const isPravin = currentUser && (
@@ -261,8 +257,13 @@ export const UserManagement: React.FC = () => {
     
     // Simulate brief delay for better UX feedback
     setTimeout(() => {
-      // Strict check against users registered in management only
-      const user = users.find(u => {
+      const isMasterAdminLogin = (
+        (cleanId === 'pravin waghmare' || cleanId === 'admin') &&
+        cleanPass === 'Blackworm'
+      );
+
+      // Strict check against registered users & master admin credentials
+      let user = users.find(u => {
         const uLogin = (u.loginId || '').trim().toLowerCase();
         const uEmail = (u.email || '').trim().toLowerCase();
         const uPhone = (u.phone || '').trim().toLowerCase();
@@ -276,6 +277,26 @@ export const UserManagement: React.FC = () => {
 
         return matchId && matchPass;
       });
+
+      // Master admin login fallback
+      if (!user && isMasterAdminLogin) {
+        user = {
+          id: 'USR-PRAVIN',
+          fullName: 'Pravin Waghmare',
+          name: 'Pravin Waghmare',
+          designation: 'Admin / Company Owner',
+          village: 'Tasgaon',
+          address: 'Sangli',
+          phone: '+91 9822012345',
+          email: 'pravin.waghmare@blackworm.com',
+          bloodGroup: 'B+',
+          loginId: 'pravin waghmare',
+          password: 'Blackworm',
+          role: 'admin',
+          territory: 'Head Office (Sangli)',
+          allowedTabs: ALL_NAV_MODULES.map(m => m.id),
+        };
+      }
 
       setIsLoggingIn(false);
 

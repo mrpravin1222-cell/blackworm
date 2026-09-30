@@ -2,6 +2,7 @@ export type Language = 'mr' | 'en';
 
 export type UserRole = 
   | 'admin' 
+  | 'user'
   | 'asm' 
   | 'field-officer' 
   | 'sales-officer' 
