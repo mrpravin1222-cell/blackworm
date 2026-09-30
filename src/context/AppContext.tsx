@@ -830,18 +830,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchAuthoritativeData();
     connectSSE();
 
-    // Re-sync when mobile/browser tab becomes visible or focused
-    const handleVisibilityOrFocus = () => {
+    // Re-sync when mobile/browser tab becomes visible after app switch
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchAuthoritativeData();
       }
     };
 
-    window.addEventListener('visibilitychange', handleVisibilityOrFocus);
-    window.addEventListener('focus', handleVisibilityOrFocus);
-
-    // Periodic heartbeat sync every 3 seconds to ensure 100% real-time integrity across all devices
-    const syncInterval = setInterval(fetchAuthoritativeData, 3000);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     const handleOnline = () => {
       setIsOnline(true);
@@ -854,9 +850,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       if (eventSource) eventSource.close();
       clearTimeout(reconnectTimeout);
-      clearInterval(syncInterval);
-      window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
-      window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackworm-cache-v2';
+const CACHE_NAME = 'blackworm-cache-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -20,8 +20,29 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
-  // Network-first strategy for instant real-time updates across all devices
+
+  const url = new URL(event.request.url);
+
+  // Do not cache or intercept Firebase Firestore / Auth or external APIs
+  if (
+    url.origin.includes('firestore') ||
+    url.origin.includes('firebase') ||
+    url.origin.includes('googleapis') ||
+    url.pathname.includes('/api/')
+  ) {
+    return;
+  }
+
+  // Always fetch latest HTML document on navigation to ensure new updates load immediately
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' })
+        .catch(() => caches.match('/'))
+    );
+    return;
+  }
+
+  // Network-first strategy for static assets
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
@@ -33,15 +54,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
-          }
-        });
-      })
+      .catch(() => caches.match(event.request))
   );
 });
