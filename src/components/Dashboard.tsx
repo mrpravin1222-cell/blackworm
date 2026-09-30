@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { NavTab, User } from '../types';
+import { NavTab } from '../types';
+import { isTabAllowedForUser } from '../utils/permissionHelpers';
 import {
   Target,
   UserCheck,
@@ -17,6 +18,7 @@ import {
 
 export const Dashboard: React.FC = () => {
   const { 
+    currentUser,
     setActiveTab, 
     language, 
     dealerApplications, 
@@ -128,12 +130,17 @@ export const Dashboard: React.FC = () => {
     },
   ];
 
+  const visibleIcons = dashboardIcons.filter((item) => {
+    if (item.id === 'logout') return true;
+    return isTabAllowedForUser(item.id as NavTab, currentUser);
+  });
+
   return (
     <div className="py-6 sm:py-10 animate-in fade-in duration-200">
       <div className="max-w-5xl mx-auto px-3 sm:px-6">
         {/* All icons in a clean grid layout */}
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-y-7 sm:gap-y-9 gap-x-2 sm:gap-x-6 justify-items-center">
-          {dashboardIcons.map((item) => {
+          {visibleIcons.map((item) => {
             const Icon = item.icon;
             const title = language === 'mr' ? item.titleMr : item.titleEn;
 
