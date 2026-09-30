@@ -512,6 +512,18 @@ export const TargetSheet: React.FC = React.memo(() => {
     triggerPrint();
   };
 
+  const cleanOfficerName = (name: string) => {
+    if (!name) return '';
+    return name
+      .replace(/Sales Officer/gi, '')
+      .replace(/Sr\.Sales Officer/gi, '')
+      .replace(/Field Officer/gi, '')
+      .replace(/Owner SR/gi, '')
+      .replace(/SR/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* PERFECT A4 PRINT CSS FOR TARGET SHEET */}
@@ -583,21 +595,21 @@ export const TargetSheet: React.FC = React.memo(() => {
         }
       `}</style>
       {/* Top Header & Toolbar */}
-      <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs shrink-0">
-            <Target className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <Target className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="overflow-hidden">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight whitespace-nowrap">
+              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight whitespace-nowrap">
                 {language === 'mr' ? 'सेल्स टार्गेट शीट' : 'Sales Target Sheet'}
               </h1>
-              <span className="px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-bold text-xs border border-red-200 whitespace-nowrap">
+              <span className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-700 font-bold text-[10px] sm:text-xs border border-red-200 whitespace-nowrap">
                 2026-27
               </span>
               {savedBadge && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 animate-in fade-in duration-100 whitespace-nowrap">
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px] sm:text-xs border border-emerald-200 animate-in fade-in duration-100 whitespace-nowrap">
                   <Check className="w-3 h-3" />
                   <span>{language === 'mr' ? 'सेव्ह!' : 'Saved!'}</span>
                 </span>
@@ -606,54 +618,56 @@ export const TargetSheet: React.FC = React.memo(() => {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Action Controls - Optimized for Mobile responsiveness */}
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
           {/* Officer Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            <Users className="w-4 h-4 text-slate-500 shrink-0" />
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 flex-1 md:flex-none min-w-0">
+            <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             {isAdmin ? (
               <select
                 id="select-officer-target-sheet"
                 value={selectedTargetId}
                 onChange={(e) => setSelectedTargetId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[160px] sm:max-w-none truncate"
+                className="bg-transparent text-[11px] sm:text-xs font-bold text-slate-800 focus:outline-none cursor-pointer w-full max-w-[120px] sm:max-w-none truncate"
               >
                 {visibleTargets.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.executiveName || t.personName} ({t.executiveRole || t.designation})
+                    {cleanOfficerName(t.executiveName || t.personName || '')}
                   </option>
                 ))}
               </select>
             ) : (
-              <span className="text-xs font-bold text-slate-800 truncate">
-                {activeTarget.executiveName || activeTarget.personName} ({activeTarget.executiveRole || activeTarget.designation})
+              <span className="text-[11px] sm:text-xs font-bold text-slate-800 truncate">
+                {cleanOfficerName(activeTarget.executiveName || activeTarget.personName || '')}
               </span>
             )}
           </div>
 
-          {/* PDF Download Icon Button Only */}
-          <button
-            type="button"
-            onClick={() => {
-              exportElementToPDF('target-sheet-printable', `Blackworm-Target-Sheet-${activeTarget.executiveName || 'Officer'}.pdf`);
-            }}
-            title={language === 'mr' ? 'पीडीएफ डाऊनलोड करा' : 'Download PDF'}
-            className="p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer"
-            aria-label="Download PDF"
-          >
-            <FileDown className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* PDF Download Icon Button Only */}
+            <button
+              type="button"
+              onClick={() => {
+                exportElementToPDF('target-sheet-printable', `Blackworm-Target-Sheet-${activeTarget.executiveName || activeTarget.personName || 'Officer'}.pdf`);
+              }}
+              title={language === 'mr' ? 'पीडीएफ डाऊनलोड करा' : 'Download PDF'}
+              className="p-2 sm:p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer active:scale-95"
+              aria-label="Download PDF"
+            >
+              <FileDown className="w-4 h-4" />
+            </button>
 
-          {/* Sync Live Icon Button Only */}
-          <button
-            type="button"
-            onClick={handleSyncWithRealData}
-            title={language === 'mr' ? 'लाईव्ह सिंक करा' : 'Sync Live Data'}
-            className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer"
-            aria-label="Sync Live Data"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+            {/* Sync Live Icon Button Only */}
+            <button
+              type="button"
+              onClick={handleSyncWithRealData}
+              title={language === 'mr' ? 'लाईव्ह सिंक करा' : 'Sync Live Data'}
+              className="p-2 sm:p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer active:scale-95"
+              aria-label="Sync Live Data"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

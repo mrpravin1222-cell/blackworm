@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   LogOut,
+  Sparkles,
 } from 'lucide-react';
 
 export const Header: React.FC = React.memo(() => {
@@ -51,17 +52,17 @@ export const Header: React.FC = React.memo(() => {
   const pendingDealersCount = dealerApplications.filter((d) => d.status === 'pending').length;
   const pendingExpensesCount = travelExpenses.filter((e) => e.status === 'pending').length;
 
-  const navItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
+  const navItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }>; badge?: number; hasUpdate?: boolean }[] = [
     { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'daily-activity', labelMr: 'दैनिक कामकाज', labelEn: 'Daily Activity', icon: CalendarCheck2 },
-    { id: 'target-sheet', labelMr: 'टार्गेट सीट', labelEn: 'Target Sheet', icon: Target },
+    { id: 'daily-activity', labelMr: 'दैनिक कामकाज', labelEn: 'Daily Activity', icon: CalendarCheck2, hasUpdate: true },
+    { id: 'target-sheet', labelMr: 'टार्गेट सीट', labelEn: 'Target Sheet', icon: Target, hasUpdate: true },
     { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
-    { id: 'order-collection', labelMr: 'ऑर्डर आणि कलेक्शन', labelEn: 'Order & Collection', icon: Receipt },
+    { id: 'order-collection', labelMr: 'ऑर्डर आणि कलेक्शन', labelEn: 'Order & Collection', icon: Receipt, hasUpdate: true },
     { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
-    { id: 'dealer-form', labelMr: 'डीलर ॲप्लिकेशन', labelEn: 'Dealer Portal', icon: Users, badge: pendingDealersCount },
-    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग एक्सपेन्सेस', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount },
+    { id: 'dealer-form', labelMr: 'डीलर ॲप्लिकेशन', labelEn: 'Dealer Portal', icon: Users, badge: pendingDealersCount, hasUpdate: true },
+    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग एक्सपेन्सेस', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
     { id: 'scheme', labelMr: 'स्कीम', labelEn: 'Scheme', icon: Gift },
-    { id: 'reporting', labelMr: 'रिपोर्टिंग', labelEn: 'Reports & Analytics', icon: BarChart3 },
+    { id: 'reporting', labelMr: 'रिपोर्टिंग', labelEn: 'Reports & Analytics', icon: BarChart3, hasUpdate: true },
     { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Settings', icon: Settings },
   ];
 
@@ -114,14 +115,17 @@ export const Header: React.FC = React.memo(() => {
                 type="button"
                 id="menu-toggle-btn"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-1.5 sm:p-2 rounded-xl border border-slate-200 text-slate-800 hover:bg-slate-100 shadow-2xs flex items-center justify-center cursor-pointer active:scale-95 bg-slate-50/80"
+                className="p-1.5 sm:p-2 rounded-xl border border-slate-200 text-slate-800 hover:bg-slate-100 shadow-2xs flex items-center justify-center cursor-pointer active:scale-95 bg-slate-50/80 relative"
                 aria-label="Toggle Navigation Menu"
                 title={language === 'mr' ? 'मेन्यू' : 'Menu'}
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5 text-red-600" />
                 ) : (
-                  <Menu className="w-5 h-5 text-slate-800" />
+                  <>
+                    <Menu className="w-5 h-5 text-slate-800" />
+                    <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-amber-500 animate-pulse" />
+                  </>
                 )}
               </button>
             </div>
@@ -143,7 +147,7 @@ export const Header: React.FC = React.memo(() => {
                     setMobileMenuOpen(false);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative ${
                     isActive
                       ? 'bg-red-600 text-white shadow-xs'
                       : 'text-slate-700 hover:bg-slate-200/70 hover:text-slate-900'
@@ -151,6 +155,9 @@ export const Header: React.FC = React.memo(() => {
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />
                   <span>{language === 'mr' ? item.labelMr : item.labelEn}</span>
+                  {item.hasUpdate && !isActive && (
+                    <Sparkles className="w-3 h-3 text-amber-500 animate-pulse absolute -top-1 -right-0.5" />
+                  )}
                   {item.badge !== undefined && item.badge > 0 && (
                     <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white shrink-0 ml-0.5">
                       {item.badge}
@@ -189,7 +196,7 @@ export const Header: React.FC = React.memo(() => {
                       setMobileMenuOpen(false);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer active:scale-98 ${
+                    className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer active:scale-98 relative ${
                       isActive
                         ? 'bg-red-600 text-white shadow-xs'
                         : 'hover:bg-slate-100 text-slate-800 border border-slate-200 bg-slate-50/80'
@@ -198,6 +205,9 @@ export const Header: React.FC = React.memo(() => {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Icon className="w-4 h-4 shrink-0" />
                       <span className="truncate">{language === 'mr' ? item.labelMr : item.labelEn}</span>
+                      {item.hasUpdate && !isActive && (
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                      )}
                     </div>
                     {item.badge !== undefined && item.badge > 0 && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-500 text-white shrink-0 ml-1">
