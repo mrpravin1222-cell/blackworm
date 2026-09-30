@@ -126,7 +126,7 @@ const getTodayDateStr = (): string => {
   return `${y}-${m}-${d}`;
 };
 
-export const DailyActivityLog: React.FC = () => {
+export const DailyActivityLog: React.FC = React.memo(() => {
   const {
     language,
     currentUser,
@@ -1474,4 +1474,4 @@ export const DailyActivityLog: React.FC = () => {
       )}
     </div>
   );
-};
+});

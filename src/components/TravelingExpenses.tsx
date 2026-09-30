@@ -27,7 +27,7 @@ const getCurrentMonthYear = (): string => {
   return `${year}-${month}`;
 };
 
-export const TravelingExpenses: React.FC = () => {
+export const TravelingExpenses: React.FC = React.memo(() => {
   const { language, currentUser, users, showNotification, saveTravelSheet, companyDetails } = useApp();
 
   const isAdmin = currentUser ? (
@@ -791,4 +791,4 @@ export const TravelingExpenses: React.FC = () => {
       />
     </div>
   );
-};
+});

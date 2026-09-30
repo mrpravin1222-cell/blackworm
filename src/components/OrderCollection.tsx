@@ -35,7 +35,7 @@ import {
   Percent,
 } from 'lucide-react';
 
-export const OrderCollection: React.FC = () => {
+export const OrderCollection: React.FC = React.memo(() => {
   const {
     language,
     currentUser,
@@ -1720,4 +1720,4 @@ export const OrderCollection: React.FC = () => {
       )}
     </div>
   );
-};
+});

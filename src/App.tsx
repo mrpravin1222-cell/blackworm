@@ -21,7 +21,9 @@ import {
   Receipt,
   Target,
   Menu,
+  ArrowUp,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MainContent: React.FC = () => {
   const { activeTab, setActiveTab, currentUser, language } = useApp();
@@ -111,9 +113,28 @@ const MainContent: React.FC = () => {
   }, []);
 
   // STRICT AUTH GUARD: Without a valid logged-in user, render ONLY the login page
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center py-8 px-4 sm:px-6 lg:px-8 font-sans selection:bg-red-500 selection:text-white">
+      <div className="bg-slate-100 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-red-500 selection:text-white">
         <div className="text-center mb-4">
           <h1 className="text-xl sm:text-2xl font-black text-red-600 tracking-tight uppercase">
             Blackworm Agritech Pvt Ltd
@@ -171,7 +192,7 @@ const MainContent: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-red-500 selection:text-white font-sans text-slate-800 pb-32 md:pb-8">
+    <div className="bg-slate-50 flex flex-col selection:bg-red-500 selection:text-white font-sans text-slate-800 pb-32 md:pb-8">
       {/* Top Main Navigation Header */}
       <Header />
 
@@ -218,6 +239,22 @@ const MainContent: React.FC = () => {
           })}
         </div>
       </nav>
+
+      {/* Floating Back to Top Button */}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            onClick={scrollToTop}
+            className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-50 p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 transition-colors cursor-pointer group active:scale-95"
+            aria-label="Back to Top"
+          >
+            <ArrowUp className="w-6 h-6 group-hover:-translate-y-1 transition-transform" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Global High-Fidelity A4 Print Preview Modal */}
       {printPreviewState.isOpen && (

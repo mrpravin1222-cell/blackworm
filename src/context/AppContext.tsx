@@ -248,8 +248,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.addEventListener('storage', handleStorage);
 
     try {
-      if (!window.history.state) {
-        window.history.replaceState({ tab: 'dashboard' }, '', '');
+      const currentSavedTab = localStorage.getItem('blackworm_active_tab') || sessionStorage.getItem('blackworm_active_tab') || 'dashboard';
+      if (!window.history.state || !window.history.state.tab) {
+        window.history.replaceState({ tab: currentSavedTab }, '', '');
       }
     } catch (_) {}
     return () => {
@@ -503,12 +504,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch((err) => console.warn('Sync post error:', err));
   }, [clientId]);
 
+  // Server version tracking to avoid redundant merges, disk writes and re-renders
+  const lastKnownVersionRef = useRef<number | null>(null);
+
   // Non-destructive bidirectional merger (Zero Data Loss - preserves newer local edits)
   const mergeWithLocal = useCallback(<T extends { id: string; lastUpdated?: string; updatedAt?: string; createdAt?: string }>(
     serverList: T[],
     currentList: T[],
     storageKey: string
-  ): { merged: T[]; missingOnServer: T[] } => {
+  ): { merged: T[]; missingOnServer: T[]; hasChanges: boolean } => {
     const map = new Map<string, T>();
     // 1. Add server items first
     serverList.forEach((item) => {
@@ -532,8 +536,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     const merged = Array.from(map.values());
-    safeSetItem(storageKey, merged);
-    return { merged, missingOnServer };
+
+    // Check if anything actually changed compared to currentList
+    let hasChanges = false;
+    if (merged.length !== currentList.length) {
+      hasChanges = true;
+    } else {
+      for (let i = 0; i < merged.length; i++) {
+        const m = merged[i];
+        const c = currentList[i];
+        if (!c || m.id !== c.id || (m.lastUpdated || m.updatedAt) !== (c.lastUpdated || c.updatedAt)) {
+          hasChanges = true;
+          break;
+        }
+      }
+    }
+
+    if (hasChanges) {
+      safeSetItem(storageKey, merged);
+      return { merged, missingOnServer, hasChanges: true };
+    }
+    return { merged: currentList, missingOnServer, hasChanges: false };
   }, [safeSetItem]);
 
   // ================= CENTRALIZED REAL-TIME CLOUD SYNC =================
@@ -547,86 +570,117 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const json = await res.json();
       if (json.status === 'ok' && json.data) {
         const db = json.data;
+
+        // Skip parsing and state updating if server version hasn't changed
+        if (typeof db.version === 'number' && lastKnownVersionRef.current === db.version) {
+          return;
+        }
+        if (typeof db.version === 'number') {
+          lastKnownVersionRef.current = db.version;
+        }
+
         if (db.companyDetails) {
           setCompanyDetails(db.companyDetails);
           safeSetItem(STORAGE_KEYS.COMPANY, db.companyDetails);
         }
         if (Array.isArray(db.priceList)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.priceList, priceListRef.current, STORAGE_KEYS.PRICES);
-          setPriceList(merged);
-          priceListRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.priceList, priceListRef.current, STORAGE_KEYS.PRICES);
+          if (hasChanges) {
+            setPriceList(merged);
+            priceListRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('PRICE_UPDATE', { priceList: merged });
         }
         if (Array.isArray(db.targets)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.targets, targetsRef.current, STORAGE_KEYS.TARGETS);
-          setTargets(merged);
-          targetsRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.targets, targetsRef.current, STORAGE_KEYS.TARGETS);
+          if (hasChanges) {
+            setTargets(merged);
+            targetsRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('SYNC_TARGETS', { targets: merged });
         }
         if (Array.isArray(db.dealerApplications)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.dealerApplications, dealerApplicationsRef.current, STORAGE_KEYS.DEALERS);
-          setDealerApplications(merged);
-          dealerApplicationsRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerApplications, dealerApplicationsRef.current, STORAGE_KEYS.DEALERS);
+          if (hasChanges) {
+            setDealerApplications(merged);
+            dealerApplicationsRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('DEALER_UPDATE', { dealerApplications: merged });
         }
         if (Array.isArray(db.travelExpenses)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.travelExpenses, travelExpensesRef.current, STORAGE_KEYS.EXPENSES);
-          setTravelExpenses(merged);
-          travelExpensesRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.travelExpenses, travelExpensesRef.current, STORAGE_KEYS.EXPENSES);
+          if (hasChanges) {
+            setTravelExpenses(merged);
+            travelExpensesRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('EXPENSE_UPDATE', { travelExpenses: merged });
         }
         if (Array.isArray(db.users) && db.users.length > 0) {
-          const { merged, missingOnServer } = mergeWithLocal(db.users, usersRef.current, STORAGE_KEYS.USERS);
-          setUsers(merged);
-          usersRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.users, usersRef.current, STORAGE_KEYS.USERS);
+          if (hasChanges) {
+            setUsers(merged);
+            usersRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('USER_UPDATE', { users: merged });
         }
         if (Array.isArray(db.activities)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.activities, activitiesRef.current, STORAGE_KEYS.ACTIVITIES);
-          setActivities(merged);
-          activitiesRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.activities, activitiesRef.current, STORAGE_KEYS.ACTIVITIES);
+          if (hasChanges) {
+            setActivities(merged);
+            activitiesRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('ACTIVITY_UPDATE', { activities: merged });
         }
         if (Array.isArray(db.dailyActivities)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
-          setDailyActivities(merged);
-          dailyActivitiesRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
+          if (hasChanges) {
+            setDailyActivities(merged);
+            dailyActivitiesRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('DAILY_ACTIVITY_UPDATE', { dailyActivities: merged });
         }
         if (Array.isArray(db.dealerOrders)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.dealerOrders, dealerOrdersRef.current, STORAGE_KEYS.DEALER_ORDERS);
-          setDealerOrders(merged);
-          dealerOrdersRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerOrders, dealerOrdersRef.current, STORAGE_KEYS.DEALER_ORDERS);
+          if (hasChanges) {
+            setDealerOrders(merged);
+            dealerOrdersRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('DEALER_ORDERS', { dealerOrders: merged });
         }
         if (Array.isArray(db.dealerCollections)) {
-          const { merged, missingOnServer } = mergeWithLocal(db.dealerCollections, dealerCollectionsRef.current, STORAGE_KEYS.DEALER_COLLECTIONS);
-          setDealerCollections(merged);
-          dealerCollectionsRef.current = merged;
+          const { merged, missingOnServer, hasChanges } = mergeWithLocal(db.dealerCollections, dealerCollectionsRef.current, STORAGE_KEYS.DEALER_COLLECTIONS);
+          if (hasChanges) {
+            setDealerCollections(merged);
+            dealerCollectionsRef.current = merged;
+          }
           if (missingOnServer.length > 0) broadcastSync('DEALER_COLLECTIONS', { dealerCollections: merged });
         }
         if (db.travelSheets && typeof db.travelSheets === 'object') {
           const currentLocal = travelSheetsRef.current || {};
           const mergedSheets = { ...db.travelSheets };
+          let sheetsChanged = false;
           Object.entries(currentLocal).forEach(([key, localVal]) => {
             const serverVal = mergedSheets[key];
             if (!serverVal) {
               mergedSheets[key] = localVal;
+              sheetsChanged = true;
             } else if (localVal && typeof localVal === 'object') {
               const localTime = new Date(localVal.lastUpdated || 0).getTime();
               const serverTime = new Date((serverVal && serverVal.lastUpdated) || 0).getTime();
               if (localTime >= serverTime) {
                 mergedSheets[key] = localVal;
+                sheetsChanged = true;
               }
             }
           });
-          setTravelSheets(mergedSheets);
-          travelSheetsRef.current = mergedSheets;
-          safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, mergedSheets);
-          // Also sync each individual sheet key to localStorage for instant component compatibility
-          Object.entries(mergedSheets).forEach(([key, val]) => {
-            safeSetItem(`blackworm_travel_sheet_${key}`, val);
-          });
+          if (sheetsChanged || Object.keys(mergedSheets).length !== Object.keys(currentLocal).length) {
+            setTravelSheets(mergedSheets);
+            travelSheetsRef.current = mergedSheets;
+            safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, mergedSheets);
+            Object.entries(mergedSheets).forEach(([key, val]) => {
+              safeSetItem(`blackworm_travel_sheet_${key}`, val);
+            });
+          }
         }
 
         const elapsed = Math.max(0.1, Number((performance.now() - startTime).toFixed(1)));
@@ -687,8 +741,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetItem(STORAGE_KEYS.ACTIVITIES, payload.data.activities);
             }
             if (payload.data.dailyActivities) {
-              const { merged } = mergeWithLocal(payload.data.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
-              setDailyActivities(merged);
+              const { merged, hasChanges } = mergeWithLocal(payload.data.dailyActivities, dailyActivitiesRef.current, STORAGE_KEYS.DAILY_ACTIVITIES);
+              if (hasChanges) setDailyActivities(merged);
             }
             if (payload.data.dealerOrders) {
               setDealerOrders(payload.data.dealerOrders);

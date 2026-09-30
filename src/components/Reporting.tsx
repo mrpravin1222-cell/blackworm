@@ -39,7 +39,7 @@ const getTodayDateStr = (): string => {
   return `${y}-${m}-${d}`;
 };
 
-export const Reporting: React.FC = () => {
+export const Reporting: React.FC = React.memo(() => {
   const {
     language,
     targets,
@@ -56,30 +56,9 @@ export const Reporting: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Mandatory real-time check & live continuous synchronization
+  // Initial sync check on mount
   useEffect(() => {
     refreshData().catch(() => {});
-
-    const interval = setInterval(() => {
-      refreshData().catch(() => {});
-    }, 3000);
-
-    const onFocus = () => refreshData().catch(() => {});
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') refreshData().catch(() => {});
-    };
-    const onStorage = () => refreshData().catch(() => {});
-
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('storage', onStorage);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('storage', onStorage);
-    };
   }, [refreshData]);
 
   const handleManualRefresh = async () => {
@@ -1272,4 +1251,4 @@ export const Reporting: React.FC = () => {
       )}
     </div>
   );
-};
+});

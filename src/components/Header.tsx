@@ -22,7 +22,7 @@ import {
   LogOut,
 } from 'lucide-react';
 
-export const Header: React.FC = () => {
+export const Header: React.FC = React.memo(() => {
   const {
     language,
     setLanguage,
@@ -238,4 +238,4 @@ export const Header: React.FC = () => {
       )}
     </>
   );
-};
+});

@@ -49,7 +49,7 @@ const getFinMonthSrNo = (dateStr: string): number => {
   return srNo;
 };
 
-export const TargetSheet: React.FC = () => {
+export const TargetSheet: React.FC = React.memo(() => {
   const {
     language,
     targets,
@@ -1463,4 +1463,4 @@ export const TargetSheet: React.FC = () => {
       )}
     </div>
   );
-};
+});

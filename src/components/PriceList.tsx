@@ -54,7 +54,7 @@ const GROUP_ICONS: Record<string, string> = {
   'Pest Care': '🛡️',
 };
 
-export const PriceList: React.FC = () => {
+export const PriceList: React.FC = React.memo(() => {
   const {
     language,
     priceList,
@@ -937,4 +937,4 @@ export const PriceList: React.FC = () => {
       )}
     </div>
   );
-};
+});
