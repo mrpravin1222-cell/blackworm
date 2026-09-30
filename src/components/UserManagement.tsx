@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { User, UserRole } from '../types';
+import { User, UserRole, NavTab } from '../types';
+import { ALL_NAV_MODULES } from '../utils/permissionHelpers';
 import { initialUsers } from '../data/initialData';
+import { generateShareMessage, getCleanAppLink, shareViaWhatsApp } from '../utils/shareHelpers';
 import { 
   UserPlus, 
   Users, 
@@ -21,7 +23,12 @@ import {
   Target,
   Eye,
   EyeOff,
-  CheckCircle2
+  CheckCircle2,
+  Share2,
+  Send,
+  Copy,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
@@ -83,7 +90,22 @@ export const UserManagement: React.FC = () => {
   
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qLogin = params.get('loginId') || params.get('id') || params.get('user');
+      const qPass = params.get('pass') || params.get('password');
+      if (qLogin) setLoginId(qLogin);
+      if (qPass) setPassword(qPass);
+    } catch {
+      // Ignore URL parse errors
+    }
+  }, []);
   
+  const defaultTabs: NavTab[] = ALL_NAV_MODULES.map(m => m.id);
+
   const [formData, setFormData] = useState<Omit<User, 'id'>>({
     fullName: '',
     name: '',
@@ -97,6 +119,7 @@ export const UserManagement: React.FC = () => {
     password: '',
     role: 'field-officer',
     territory: '',
+    allowedTabs: defaultTabs,
   });
 
   React.useEffect(() => {
@@ -114,6 +137,7 @@ export const UserManagement: React.FC = () => {
         password: editingUser.password,
         role: editingUser.role,
         territory: editingUser.territory || '',
+        allowedTabs: editingUser.allowedTabs && editingUser.allowedTabs.length > 0 ? editingUser.allowedTabs : defaultTabs,
       });
     } else {
       setFormData({
@@ -129,9 +153,29 @@ export const UserManagement: React.FC = () => {
         password: '',
         role: 'field-officer',
         territory: '',
+        allowedTabs: defaultTabs,
       });
     }
   }, [editingUser]);
+
+  const handleToggleTab = (tabId: NavTab) => {
+    setFormData(prev => {
+      const currentAllowed = prev.allowedTabs || [];
+      const exists = currentAllowed.includes(tabId);
+      const updatedTabs = exists
+        ? currentAllowed.filter(t => t !== tabId)
+        : [...currentAllowed, tabId];
+      return { ...prev, allowedTabs: updatedTabs };
+    });
+  };
+
+  const handleSelectAllTabs = () => {
+    setFormData(prev => ({ ...prev, allowedTabs: ALL_NAV_MODULES.map(m => m.id) }));
+  };
+
+  const handleClearAllTabs = () => {
+    setFormData(prev => ({ ...prev, allowedTabs: ['dashboard'] }));
+  };
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
   const roles: { id: UserRole; label: string }[] = [
@@ -539,6 +583,66 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
 
+        {/* MODULE / FEATURE ACCESS PERMISSIONS SECTION */}
+        <div className="pt-4 border-t border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div>
+              <label className="block text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-red-600" />
+                {language === 'mr' ? 'मॉड्यूल / ऑप्शन ॲक्सेस परवानग्या (Module Access Permissions)' : 'Module Access Permissions'}
+              </label>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {language === 'mr' ? 'या युजरला ॲपमध्ये कोणकोणते ऑपशन्स दिसतील आणि वापरता येतील ते निवडा:' : 'Select which options/modules this user is allowed to view and use in the app:'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleSelectAllTabs}
+                className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+              >
+                {language === 'mr' ? 'सर्व निवडा (Select All)' : 'Select All'}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllTabs}
+                className="px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+              >
+                {language === 'mr' ? 'सर्व काढा (Clear)' : 'Clear All'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            {ALL_NAV_MODULES.map((mod) => {
+              const isChecked = (formData.allowedTabs || []).includes(mod.id);
+              return (
+                <label
+                  key={`permission-${mod.id}`}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                    isChecked
+                      ? 'bg-white border-emerald-500 shadow-2xs text-slate-900 font-bold'
+                      : 'bg-white/60 border-slate-200 text-slate-400 font-medium'
+                  }`}
+                >
+                  <span className="text-xs flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleTab(mod.id)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>{language === 'mr' ? mod.labelMr : mod.labelEn}</span>
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${isChecked ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}`}>
+                    {isChecked ? (language === 'mr' ? 'ॲलोव्ड' : 'Allowed') : (language === 'mr' ? 'ब्लॉक' : 'Blocked')}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-800 font-semibold">
           <Target className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>
@@ -589,6 +693,51 @@ export const UserManagement: React.FC = () => {
           <UserPlus className="w-5 h-5" />
           {language === 'mr' ? 'नवीन युजर' : 'Add New'}
         </button>
+      </div>
+
+      {/* CLEAN APP SHARE & INVITE BANNER */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-red-600/20 border border-red-500/30 rounded-xl flex items-center justify-center shrink-0">
+            <Share2 className="w-6 h-6 text-red-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black tracking-wide text-white uppercase flex items-center gap-1.5">
+              <span>{language === 'mr' ? 'ॲप लॉगिन लिंक शेअर करा (Clean App Invitation Link)' : 'Share App Login Link'}</span>
+            </h3>
+            <p className="text-xs text-slate-300 font-medium mt-0.5">
+              {language === 'mr' ? 'कोणत्याही प्लॅटफॉर्मचा उल्लेख नसलेली कंपनीची थेट लॉगिन लिंक दुसऱ्या एम्प्लॉयीला पाठवा:' : 'Send official direct app login link to another employee or admin:'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const msg = generateShareMessage(null, language);
+              shareViaWhatsApp(msg);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>{language === 'mr' ? 'WhatsApp वर लिंक पाठवा' : 'WhatsApp Share'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const link = getCleanAppLink();
+              navigator.clipboard.writeText(link);
+              setCopiedUserId('GENERAL_LINK');
+              showNotification(language === 'mr' ? 'अधिकृत ॲप लॉगिन लिंक क्लिपबोर्डवर कॉपी झाली!' : 'Official App Login Link copied!');
+              setTimeout(() => setCopiedUserId(null), 2500);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
+          >
+            {copiedUserId === 'GENERAL_LINK' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedUserId === 'GENERAL_LINK' ? (language === 'mr' ? 'कॉपी झाली!' : 'Copied!') : (language === 'mr' ? 'लिंक कॉपी करा' : 'Copy Link')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -649,7 +798,21 @@ export const UserManagement: React.FC = () => {
                 <Phone className="w-3.5 h-3.5 text-slate-400" />
                 {user.phone}
               </div>
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+
+              {/* Module Access Permission Summary Badge */}
+              <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200 mt-2">
+                <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                  {language === 'mr' ? 'ऑप्शन ॲक्सेस:' : 'Option Access:'}
+                </span>
+                <span className="text-[10.5px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                  {user.role === 'admin' || user.id === 'USR-001'
+                    ? (language === 'mr' ? 'सर्व ऑपशन्स सुरु (Full Admin)' : 'All Options (Full Admin)')
+                    : `${user.allowedTabs ? user.allowedTabs.length : ALL_NAV_MODULES.length}/${ALL_NAV_MODULES.length} ${language === 'mr' ? 'ऑपशन्स' : 'Options'}`}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5">
                     <Shield className="w-3.5 h-3.5 text-slate-400" />
@@ -670,6 +833,42 @@ export const UserManagement: React.FC = () => {
                   className="text-red-600 hover:underline text-xs font-bold"
                 >
                   View Details →
+                </button>
+              </div>
+
+              {/* WhatsApp Share & Copy User Link Button */}
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const msg = generateShareMessage(user, language);
+                    shareViaWhatsApp(msg);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl font-bold text-[10.5px] border border-emerald-200 transition-all cursor-pointer shadow-2xs"
+                  title={language === 'mr' ? 'या युजरला WhatsApp वर लॉगिन माहिती व लिंक पाठवा' : 'Send WhatsApp Invite'}
+                >
+                  <Send className="w-3 h-3 shrink-0" />
+                  <span>{language === 'mr' ? 'WhatsApp' : 'WhatsApp'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const userLink = getCleanAppLink(user.loginId);
+                    navigator.clipboard.writeText(userLink);
+                    setCopiedUserId(user.id);
+                    showNotification(
+                      language === 'mr' ? `${user.fullName || user.name} ची लॉगिन लिंक कॉपी झाली!` : 'User Login Link copied!',
+                      'info'
+                    );
+                    setTimeout(() => setCopiedUserId(null), 2500);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-slate-50 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10.5px] border border-slate-200 transition-all cursor-pointer shadow-2xs"
+                  title={language === 'mr' ? 'लॉगिन लिंक कॉपी करा' : 'Copy Link'}
+                >
+                  {copiedUserId === user.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedUserId === user.id ? (language === 'mr' ? 'कॉपी झाली' : 'Copied!') : (language === 'mr' ? 'लिंक कॉपी' : 'Copy Link')}</span>
                 </button>
               </div>
             </div>

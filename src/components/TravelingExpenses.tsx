@@ -580,11 +580,12 @@ export const TravelingExpenses: React.FC = () => {
           <div className="min-w-[850px] sm:min-w-full p-1 box-border">
             {/* COMPANY HEADER WITH OFFICIAL LOGO & LEGAL INFO */}
             <div className="flex items-center justify-between border-b-2 border-slate-950 pb-3 mb-3">
-              <div className="w-36 shrink-0 flex items-center justify-center p-1 bg-white rounded-xl shadow-xs border border-slate-200">
+              <div className="w-44 sm:w-48 shrink-0 flex items-center justify-center p-1.5 bg-white rounded-xl shadow-xs border border-slate-200">
                 <img
                   src={companyDetails?.logoUrl || BLACKWORM_LOGO_BASE64}
                   alt="Blackworm Logo"
-                  className="h-20 sm:h-24 w-auto max-w-[170px] object-contain mix-blend-multiply"
+                  className="h-24 sm:h-28 w-auto max-w-[210px] object-contain mix-blend-multiply"
+                  style={{ imageRendering: '-webkit-optimize-contrast' }}
                   referrerPolicy="no-referrer"
                 />
               </div>

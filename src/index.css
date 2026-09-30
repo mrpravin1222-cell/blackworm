@@ -363,4 +363,104 @@ input[type="number"] {
     padding-top: 3px !important;
     padding-bottom: 2px !important;
   }
+
+  /* Form logo size enlargement, high-sharpness and contrast enhancement for print & screen */
+  img[alt*="Logo"],
+  img[alt*="logo"],
+  .brand-logo-img {
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+    filter: contrast(1.08) brightness(1.01) !important;
+  }
+
+  #dealer-print-form img[alt*="Logo"] {
+    height: 96px !important;
+    max-width: 155px !important;
+    transform: scale(1.15) !important;
+    transform-origin: left center !important;
+    object-fit: contain !important;
+  }
+
+  #traveling-expenses-printable img[alt*="Logo"] {
+    height: 105px !important;
+    max-width: 220px !important;
+    object-fit: contain !important;
+  }
+}
+
+/* Hide "Applicant Photo" / "अर्जदार फोटो" text label under photo frame across live app, print & PDF */
+#dealer-print-form .w-28 > span.tracking-tight,
+.w-28.shrink-0 > span.tracking-tight {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Universal Mobile Responsive & Anti-Overlap Protection Rules */
+*, ::before, ::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent text clipping and overlapping across varied screen widths */
+p, span, h1, h2, h3, h4, h5, h6, label, td, th {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+}
+
+/* Fluid spacing and container constraints for mobile devices */
+@media (max-width: 640px) {
+  .container, .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  
+  /* Ensure flex and grid elements wrap cleanly without clipping */
+  .flex-wrap-mobile {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* Global Bottom-Nav & Container Spacing Standardization */
+main, .main-content-container, #root > div {
+  padding-bottom: env(safe-area-inset-bottom, 5rem);
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 5.5rem !important; /* Account for mobile bottom navigation height */
+  }
+}
+
+/* Permanent Dealer Stamp Area Cleanliness & Integrity Rule for Print & PDF Export */
+.dealer-stamp-area,
+[class*="stamp"],
+[id*="stamp"],
+.dealer-stamp-box {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  z-index: 20 !important;
+  position: relative !important;
+}
+
+@media print {
+  .dealer-stamp-area,
+  [class*="stamp"],
+  [id*="stamp"],
+  .dealer-stamp-box {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    isolation: isolate !important;
+  }
 }

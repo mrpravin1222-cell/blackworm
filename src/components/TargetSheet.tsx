@@ -89,15 +89,23 @@ export const TargetSheet: React.FC = () => {
       return true;
     });
 
-    if (isAdmin) return validTargets.length > 0 ? validTargets : targets;
-
-    const currentName = (currentUser.fullName || currentUser.name || '').toLowerCase();
-    const userTargets = validTargets.filter((t) => {
+    const targetList = isAdmin ? (validTargets.length > 0 ? validTargets : targets) : validTargets.filter((t) => {
+      const currentName = (currentUser.fullName || currentUser.name || '').toLowerCase();
       const pName = (t.personName || t.executiveName || '').toLowerCase();
       return pName.includes(currentName) || currentName.includes(pName) || t.userId === currentUser.id;
     });
 
-    if (userTargets.length > 0) return userTargets;
+    // Deduplicate by normalized name to ensure exact unique officers (no duplicate Shridhar Balkrishna Shinde etc.)
+    const seenNames = new Set<string>();
+    const uniqueTargets = targetList.filter((t) => {
+      const nameKey = (t.executiveName || t.personName || '').trim().toLowerCase();
+      if (!nameKey) return true;
+      if (seenNames.has(nameKey)) return false;
+      seenNames.add(nameKey);
+      return true;
+    });
+
+    if (uniqueTargets.length > 0) return uniqueTargets;
 
     // Default target for officer if none created yet
     const fallbackTarget: TargetItem = {
@@ -577,21 +585,21 @@ export const TargetSheet: React.FC = () => {
       {/* Top Header & Toolbar */}
       <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
+          <div className="w-11 h-11 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs shrink-0">
             <Target className="w-6 h-6" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                {language === 'mr' ? 'सेल्स टार्गेट सीट (Sales Target Sheet)' : 'Sales Target Sheet'}
+          <div className="overflow-hidden">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight whitespace-nowrap">
+                {language === 'mr' ? 'सेल्स टार्गेट शीट' : 'Sales Target Sheet'}
               </h1>
-              <span className="px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-bold text-xs border border-red-200">
-                2026-2027
+              <span className="px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-bold text-xs border border-red-200 whitespace-nowrap">
+                2026-27
               </span>
               {savedBadge && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 animate-in fade-in duration-100">
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 animate-in fade-in duration-100 whitespace-nowrap">
                   <Check className="w-3 h-3" />
-                  <span>{language === 'mr' ? 'सेव्ह झाले!' : 'Saved!'}</span>
+                  <span>{language === 'mr' ? 'सेव्ह!' : 'Saved!'}</span>
                 </span>
               )}
             </div>
@@ -602,13 +610,13 @@ export const TargetSheet: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           {/* Officer Selector */}
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            <Users className="w-4 h-4 text-slate-500" />
+            <Users className="w-4 h-4 text-slate-500 shrink-0" />
             {isAdmin ? (
               <select
                 id="select-officer-target-sheet"
                 value={selectedTargetId}
                 onChange={(e) => setSelectedTargetId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[180px] sm:max-w-none truncate"
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[160px] sm:max-w-none truncate"
               >
                 {visibleTargets.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -623,27 +631,29 @@ export const TargetSheet: React.FC = () => {
             )}
           </div>
 
-          {/* PDF Download Button Only (Print A4 & Preview removed as requested) */}
-          <PrintActions
-            elementId="target-sheet-printable"
-            title={`Blackworm Target Sheet - ${activeTarget.executiveName || 'Officer'}`}
-            landscape={false}
-            showDirectPrint={false}
-            showPreview={false}
-            className="no-print"
-          />
+          {/* PDF Download Icon Button Only */}
+          <button
+            type="button"
+            onClick={() => {
+              exportElementToPDF('target-sheet-printable', `Blackworm-Target-Sheet-${activeTarget.executiveName || 'Officer'}.pdf`);
+            }}
+            title={language === 'mr' ? 'पीडीएफ डाऊनलोड करा' : 'Download PDF'}
+            className="p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer"
+            aria-label="Download PDF"
+          >
+            <FileDown className="w-4 h-4" />
+          </button>
 
-          {/* Sync Live Button Only (New Sheet button removed as requested) */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSyncWithRealData}
-              title="Sync achievement with actual orders & collections"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>{language === 'mr' ? 'लाईव्ह सिंक' : 'Sync Live'}</span>
-            </button>
-          </div>
+          {/* Sync Live Icon Button Only */}
+          <button
+            type="button"
+            onClick={handleSyncWithRealData}
+            title={language === 'mr' ? 'लाईव्ह सिंक करा' : 'Sync Live Data'}
+            className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors flex items-center justify-center cursor-pointer"
+            aria-label="Sync Live Data"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
       </div>
 

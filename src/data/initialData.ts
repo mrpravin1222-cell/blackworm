@@ -25,6 +25,21 @@ export const initialCompanyDetails: CompanyDetails = {
 
 export const initialUsers: User[] = [
   {
+    id: 'USR-PRAVIN',
+    fullName: 'Pravin Kumar Waghmare',
+    name: 'Pravin Kumar Waghmare',
+    designation: 'Admin / Executive Officer',
+    village: 'Tasgaon',
+    address: 'Tasgaon, Dist - Sangli',
+    phone: '+91 9822012345',
+    email: 'pravin.waghmare@blackworm.com',
+    bloodGroup: 'B+',
+    loginId: 'pravin',
+    password: '123',
+    role: 'admin',
+    territory: 'Head Office (Sangli)',
+  },
+  {
     id: 'USR-001',
     fullName: 'Shreedhar Balkrushna Shinde',
     name: 'Shreedhar Balkrushna Shinde',
@@ -38,21 +53,6 @@ export const initialUsers: User[] = [
     password: '123',
     role: 'admin',
     territory: 'Head Office (Sangli)',
-  },
-  {
-    id: 'USR-PRAVIN',
-    fullName: 'Pravin Kumar Waghmare',
-    name: 'Pravin Kumar Waghmare',
-    designation: 'Sr.Sales Officer',
-    village: 'Tasgaon',
-    address: 'Tasgaon, Dist - Sangli',
-    phone: '+91 9822012345',
-    email: 'pravin.waghmare@blackworm.com',
-    bloodGroup: 'B+',
-    loginId: 'pravin',
-    password: '123',
-    role: 'sales-officer',
-    territory: 'Tasgaon, Palus, Kadegaon, Khanapur (Vita )',
   },
 ];
 

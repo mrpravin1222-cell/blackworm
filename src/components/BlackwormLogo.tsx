@@ -30,17 +30,17 @@ export const BlackwormLogo: React.FC<BlackwormLogoProps> = ({
 
   // Height configurations for direct image rendering
   const imgHeights = {
-    sm: 'h-8 sm:h-9',
-    md: 'h-10 sm:h-12',
-    lg: 'h-14 sm:h-16',
-    xl: 'h-20 sm:h-24',
+    sm: 'h-9 sm:h-11',
+    md: 'h-12 sm:h-14',
+    lg: 'h-16 sm:h-20',
+    xl: 'h-24 sm:h-28',
   };
 
   const iconSizes = {
-    sm: 'w-8 h-8',
-    md: 'w-10 h-10',
-    lg: 'w-14 h-14',
-    xl: 'w-18 h-18',
+    sm: 'w-9 h-9',
+    md: 'w-12 h-12',
+    lg: 'w-16 h-16',
+    xl: 'w-22 h-22',
   };
 
   // Fallback SVG if image is ever unavailable

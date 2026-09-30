@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BlackwormLogo } from './BlackwormLogo';
 import { NavTab } from '../types';
+import { isTabAllowedForUser } from '../utils/permissionHelpers';
 import {
   LayoutDashboard,
   CalendarCheck2,
@@ -63,6 +64,8 @@ export const Header: React.FC = () => {
     { id: 'reporting', labelMr: 'रिपोर्टिंग', labelEn: 'Reports & Analytics', icon: BarChart3 },
     { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Settings', icon: Settings },
   ];
+
+  const allowedNavItems = navItems.filter((item) => isTabAllowedForUser(item.id, currentUser));
 
   return (
     <>
@@ -128,7 +131,7 @@ export const Header: React.FC = () => {
         {/* Horizontal Nav Bar for Monitor / Desktop (Quick 1-Click Access across Desktop) */}
         <div className="hidden md:block bg-slate-50/90 border-t border-slate-200/80 overflow-x-auto scrollbar-none">
           <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 py-1.5 min-w-max">
-            {navItems.map((item) => {
+            {allowedNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -174,7 +177,7 @@ export const Header: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pt-1">
-              {navItems.map((item) => {
+              {allowedNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (

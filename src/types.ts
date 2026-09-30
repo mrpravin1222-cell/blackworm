@@ -24,6 +24,7 @@ export interface User {
   role: UserRole;
   territory: string;
   avatar?: string;
+  allowedTabs?: NavTab[];
 }
 
 export interface BankDetails {

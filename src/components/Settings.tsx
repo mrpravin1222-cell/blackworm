@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BLACKWORM_LOGO_BASE64, BLACKWORM_USER_UPLOADED_LOGO_BASE64 } from '../assets/logoBase64';
+import { ALL_NAV_MODULES } from '../utils/permissionHelpers';
+import { NavTab } from '../types';
 import {
   Building2,
   Landmark,
@@ -12,6 +14,7 @@ import {
   RotateCcw,
   User as UserIcon,
   ShieldCheck,
+  Shield,
   Lock,
   Heart,
   Briefcase,
@@ -24,6 +27,7 @@ import {
   Download,
   Database,
   Globe,
+  Users,
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
@@ -31,6 +35,7 @@ export const Settings: React.FC = () => {
     language,
     setLanguage,
     currentUser,
+    users,
     updateUser,
     companyDetails,
     updateCompanyDetails,
@@ -40,6 +45,10 @@ export const Settings: React.FC = () => {
   } = useApp();
 
   const isAdmin = currentUser?.role === 'admin';
+
+  // Admin module permission manager state
+  const [selectedUserForPerms, setSelectedUserForPerms] = useState<string>('');
+  const [allowedModulesForm, setAllowedModulesForm] = useState<NavTab[]>(ALL_NAV_MODULES.map(m => m.id));
 
   // Admin company forms
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -738,6 +747,131 @@ export const Settings: React.FC = () => {
                 <Save className="w-4 h-4" />
                 <span>{language === 'mr' ? 'बँक माहिती सेव्ह करा' : 'Save Bank Details'}</span>
               </button>
+            </div>
+          </div>
+
+          {/* Section 3: Admin Module & Feature Access Control for System Users */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Shield className="w-4.5 h-4.5 text-red-600" />
+                  <span>{language === 'mr' ? 'युजर ॲक्सेस व परवानग्या सेटिंग (User Module & Access Control)' : 'User Option & Module Access Control'}</span>
+                </h2>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  {language === 'mr' ? 'युजर निवडा आणि त्यांना ॲपमधील कोणकोणते ऑपशन्स सुरु/बंद करायचे ते ठरवा:' : 'Select any user and configure which app options/modules they can use:'}
+                </p>
+              </div>
+
+              {selectedUserForPerms && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setAllowedModulesForm(ALL_NAV_MODULES.map(m => m.id))}
+                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                  >
+                    {language === 'mr' ? 'सर्व निवडा' : 'Select All'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAllowedModulesForm(['dashboard'])}
+                    className="px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                  >
+                    {language === 'mr' ? 'सर्व काढा' : 'Clear All'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Select User Dropdown */}
+              <div className="max-w-md">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  {language === 'mr' ? 'युजर निवडा (Select User)' : 'Select User to Configure Permissions'}
+                </label>
+                <select
+                  value={selectedUserForPerms}
+                  onChange={(e) => {
+                    const uId = e.target.value;
+                    setSelectedUserForPerms(uId);
+                    const targetUser = users.find(u => u.id === uId || u.loginId === uId);
+                    if (targetUser) {
+                      setAllowedModulesForm(targetUser.allowedTabs && targetUser.allowedTabs.length > 0 ? targetUser.allowedTabs : ALL_NAV_MODULES.map(m => m.id));
+                    }
+                  }}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-900 outline-none focus:border-red-500"
+                >
+                  <option value="">{language === 'mr' ? '-- परवानग्या सेट करण्यासाठी युजर निवडा --' : '-- Select User to Manage Permissions --'}</option>
+                  {users.map((u) => (
+                    <option key={`perm-user-${u.id}`} value={u.id}>
+                      👤 {u.fullName || u.name} ({u.role}) - ID: {u.loginId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedUserForPerms ? (
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    {ALL_NAV_MODULES.map((mod) => {
+                      const isChecked = allowedModulesForm.includes(mod.id);
+                      return (
+                        <label
+                          key={`settings-perm-${mod.id}`}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                            isChecked
+                              ? 'bg-white border-emerald-500 shadow-2xs text-slate-900 font-bold'
+                              : 'bg-white/60 border-slate-200 text-slate-400 font-medium'
+                          }`}
+                        >
+                          <span className="text-xs flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setAllowedModulesForm(prev => 
+                                  prev.includes(mod.id)
+                                    ? prev.filter(t => t !== mod.id)
+                                    : [...prev, mod.id]
+                                );
+                              }}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span>{language === 'mr' ? mod.labelMr : mod.labelEn}</span>
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${isChecked ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}`}>
+                            {isChecked ? (language === 'mr' ? 'ॲलोव्ड' : 'Allowed') : (language === 'mr' ? 'ब्लॉक' : 'Blocked')}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedUserForPerms) return;
+                        updateUser(selectedUserForPerms, { allowedTabs: allowedModulesForm });
+                        showNotification(
+                          language === 'mr' 
+                            ? 'युजर ऑपशन ॲक्सेस परवानग्या यशस्वीरित्या अद्ययावत झाल्या!' 
+                            : 'User module access permissions saved successfully!',
+                          'success'
+                        );
+                      }}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{language === 'mr' ? 'युजर परवानग्या सेव्ह करा' : 'Save User Permissions'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-500 font-semibold">
+                  {language === 'mr' ? '💡 वरील ड्रॉपडाऊनमधून कोणत्याही युजरला निवडा आणि त्यांना द्यायच्या ऑपशन्सच्या टिक-मार्क सेव्ह करा.' : '💡 Select a user from the dropdown above to manage and save their module access permissions.'}
+                </div>
+              )}
             </div>
           </div>
         </form>

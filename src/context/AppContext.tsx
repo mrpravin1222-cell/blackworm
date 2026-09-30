@@ -26,6 +26,7 @@ import {
   initialDailyActivities,
 } from '../data/initialData';
 import { createTargetSheetForUser, getMonthNameFromDate, DEFAULT_MONTH_NAMES } from '../utils/targetHelpers';
+import { isTabAllowedForUser } from '../utils/permissionHelpers';
 
 interface SyncPayload {
   type: string;
@@ -185,8 +186,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [activeTab, setActiveTabState] = useState<NavTab>('dashboard');
 
+  const showNotificationRef = useRef<(message: string, type?: 'success' | 'info') => void>(() => {});
+
   const setActiveTab = useCallback((tab: NavTab) => {
     const validTab = normalizeNavTab(tab);
+    
+    // Check if the current user has access permission for this module tab
+    if (currentUserRef.current && !isTabAllowedForUser(validTab, currentUserRef.current)) {
+      if (showNotificationRef.current) {
+        showNotificationRef.current(
+          language === 'mr'
+            ? 'तुमच्या खात्याला या ऑपशनचा (Option) ॲक्सेस दिलेला नाही. एडमिनशी संपर्क साधा.'
+            : 'Access Restricted: You do not have permission for this module. Contact Admin.',
+          'info'
+        );
+      }
+      return;
+    }
+
     setActiveTabState(validTab);
     try {
       if (window.history.state?.tab !== validTab) {
@@ -195,7 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.warn('pushState error:', e);
     }
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     const handlePopstate = (event: PopStateEvent) => {
@@ -457,6 +474,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setNotification((curr) => (curr?.message === message ? null : curr));
     }, 4000);
   }, []);
+  showNotificationRef.current = showNotification;
 
   const clearNotification = useCallback(() => setNotification(null), []);
 
