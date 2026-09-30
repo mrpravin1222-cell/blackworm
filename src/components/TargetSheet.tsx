@@ -657,6 +657,8 @@ export const TargetSheet: React.FC = () => {
         </div>
       </div>
 
+
+
       {/* =========================================================================
           OFFICIAL TARGET SHEET LAYOUT (FULL FIDELITY & RESPONSIVE ON BOTH MOBILE & MONITOR)
           ========================================================================= */}
@@ -664,7 +666,7 @@ export const TargetSheet: React.FC = () => {
         id="target-sheet-printable"
         className="bg-white p-3 sm:p-6 rounded-2xl border-2 border-black shadow-sm overflow-x-auto print:p-0 print:border-none print:shadow-none"
       >
-        <div className="min-w-[760px] sm:min-w-[840px] w-full">
+        <div className="min-w-[850px] w-full">
           {/* Sheet Title Headers with Official Blackworm Logo on Left */}
           <div className="flex items-center justify-center gap-4 sm:gap-6 mb-3 pb-3 border-b-2 border-black">
             <div className="shrink-0 flex items-center justify-center">

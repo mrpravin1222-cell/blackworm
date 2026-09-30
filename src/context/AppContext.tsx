@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   CompanyDetails,
   PriceListItem,
@@ -184,7 +184,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [language, setLanguageState] = useState<Language>(() => {
     return (localStorage.getItem(STORAGE_KEYS.LANG) as Language) || 'en';
   });
-  const [activeTab, setActiveTabState] = useState<NavTab>('dashboard');
+  const [activeTab, setActiveTabState] = useState<NavTab>(() => {
+    try {
+      const saved = sessionStorage.getItem('blackworm_active_tab') || localStorage.getItem('blackworm_active_tab');
+      if (saved) return normalizeNavTab(saved);
+    } catch (_) {}
+    return 'dashboard';
+  });
 
   const showNotificationRef = useRef<(message: string, type?: 'success' | 'info') => void>(() => {});
 
@@ -206,6 +212,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setActiveTabState(validTab);
     try {
+      sessionStorage.setItem('blackworm_active_tab', validTab);
+      localStorage.setItem('blackworm_active_tab', validTab);
       if (window.history.state?.tab !== validTab) {
         window.history.pushState({ tab: validTab }, '', '');
       }
@@ -218,13 +226,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const handlePopstate = (event: PopStateEvent) => {
       try {
         if (event.state && event.state.tab) {
-          setActiveTabState(normalizeNavTab(event.state.tab));
-        } else {
-          setActiveTabState('dashboard');
+          const tab = normalizeNavTab(event.state.tab);
+          setActiveTabState(tab);
+          sessionStorage.setItem('blackworm_active_tab', tab);
         }
       } catch (e) {
         console.warn('popstate error:', e);
-        setActiveTabState('dashboard');
       }
     };
 
@@ -1649,68 +1656,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [broadcastSync, language, showNotification]);
 
+  const contextValue = useMemo(() => ({
+    language,
+    setLanguage,
+    activeTab,
+    setActiveTab,
+    companyDetails,
+    updateCompanyDetails,
+    priceList,
+    addPriceItem,
+    updatePriceItem,
+    deletePriceItem,
+    importBulkPriceItems,
+    targets,
+    addTarget,
+    updateTarget,
+    deleteTarget,
+    dealerApplications,
+    addDealerApplication,
+    updateDealerApplication,
+    updateDealerStatus,
+    cancelDealerApplication,
+    deleteDealerApplication,
+    dealerOrders,
+    addDealerOrder,
+    updateDealerOrder,
+    deleteDealerOrder,
+    dealerCollections,
+    addDealerCollection,
+    updateDealerCollection,
+    deleteDealerCollection,
+    getDealerBalance,
+    dailyActivities,
+    addDailyActivity,
+    updateDailyActivity,
+    deleteDailyActivity,
+    travelExpenses,
+    addTravelExpense,
+    updateExpenseStatus,
+    deleteTravelExpense,
+    travelSheets,
+    saveTravelSheet,
+    users,
+    addUser,
+    updateUser,
+    deleteUser,
+    currentUser,
+    setCurrentUser,
+    activities,
+    lastSyncTimestamp,
+    isOnline,
+    syncLatencyMs,
+    notification,
+    clearNotification,
+    showNotification,
+    resetAllData,
+    exportDataJSON,
+    importDataJSON,
+    refreshData: fetchAuthoritativeData,
+  }), [
+    language, setLanguage, activeTab, setActiveTab, companyDetails, updateCompanyDetails,
+    priceList, addPriceItem, updatePriceItem, deletePriceItem, importBulkPriceItems,
+    targets, addTarget, updateTarget, deleteTarget, dealerApplications, addDealerApplication,
+    updateDealerApplication, updateDealerStatus, cancelDealerApplication, deleteDealerApplication,
+    dealerOrders, addDealerOrder, updateDealerOrder, deleteDealerOrder, dealerCollections,
+    addDealerCollection, updateDealerCollection, deleteDealerCollection, getDealerBalance,
+    dailyActivities, addDailyActivity, updateDailyActivity, deleteDailyActivity, travelExpenses,
+    addTravelExpense, updateExpenseStatus, deleteTravelExpense, travelSheets, saveTravelSheet,
+    users, addUser, updateUser, deleteUser, currentUser, setCurrentUser, activities,
+    lastSyncTimestamp, isOnline, syncLatencyMs, notification, clearNotification, showNotification,
+    resetAllData, exportDataJSON, importDataJSON, fetchAuthoritativeData
+  ]);
+
   return (
-    <AppContext.Provider
-      value={{
-        language,
-        setLanguage,
-        activeTab,
-        setActiveTab,
-        companyDetails,
-        updateCompanyDetails,
-        priceList,
-        addPriceItem,
-        updatePriceItem,
-        deletePriceItem,
-        importBulkPriceItems,
-        targets,
-        addTarget,
-        updateTarget,
-        deleteTarget,
-        dealerApplications,
-        addDealerApplication,
-        updateDealerApplication,
-        updateDealerStatus,
-        cancelDealerApplication,
-        deleteDealerApplication,
-        dealerOrders,
-        addDealerOrder,
-        updateDealerOrder,
-        deleteDealerOrder,
-        dealerCollections,
-        addDealerCollection,
-        updateDealerCollection,
-        deleteDealerCollection,
-        getDealerBalance,
-        dailyActivities,
-        addDailyActivity,
-        updateDailyActivity,
-        deleteDailyActivity,
-        travelExpenses,
-        addTravelExpense,
-        updateExpenseStatus,
-        deleteTravelExpense,
-        travelSheets,
-        saveTravelSheet,
-        users,
-        addUser,
-        updateUser,
-        deleteUser,
-        currentUser,
-        setCurrentUser,
-        activities,
-        lastSyncTimestamp,
-        isOnline,
-        syncLatencyMs,
-        notification,
-        clearNotification,
-        showNotification,
-        resetAllData,
-        exportDataJSON,
-        importDataJSON,
-        refreshData: fetchAuthoritativeData,
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

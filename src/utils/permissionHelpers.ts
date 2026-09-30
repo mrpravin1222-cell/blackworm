@@ -29,11 +29,21 @@ export const isTabAllowedForUser = (tabId: NavTab, user: User | null): boolean =
   // even if permissions are modified or restricted in UI/DB.
   const isMasterSystemAdmin = 
     user.id === 'USR-PRAVIN' ||
+    user.id === 'USR-001' ||
     user.loginId?.toLowerCase() === 'pravin' ||
-    (user.fullName && user.fullName.toLowerCase().includes('pravin')) ||
-    user.loginId?.toLowerCase().includes('shridhar') ||
-    (user.fullName && user.fullName.toLowerCase().includes('shridhar')) ||
-    (user.name && user.name.toLowerCase().includes('shridhar'));
+    user.loginId?.toLowerCase() === 'admin' ||
+    (user.fullName && (
+      user.fullName.toLowerCase().includes('pravin') || 
+      user.fullName.toLowerCase().includes('shreedhar') || 
+      user.fullName.toLowerCase().includes('shridhar') || 
+      user.fullName.toLowerCase().includes('shinde')
+    )) ||
+    (user.name && (
+      user.name.toLowerCase().includes('pravin') || 
+      user.name.toLowerCase().includes('shreedhar') || 
+      user.name.toLowerCase().includes('shridhar') || 
+      user.name.toLowerCase().includes('shinde')
+    ));
 
   if (isMasterSystemAdmin) {
     return true;

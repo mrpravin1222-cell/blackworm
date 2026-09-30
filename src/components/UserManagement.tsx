@@ -49,7 +49,8 @@ export const UserManagement: React.FC = () => {
       return 'login';
     }
     const safeName = (currentUser.fullName || currentUser.name || '').toLowerCase();
-    return (currentUser.role === 'admin' || safeName.includes('pravin') || safeName.includes('shinde')) ? 'list' : 'profile';
+    const isUsrAdmin = currentUser.role === 'admin' || currentUser.loginId === 'admin' || currentUser.id === 'USR-001' || safeName.includes('pravin') || safeName.includes('shreedhar') || safeName.includes('shridhar') || safeName.includes('shinde');
+    return isUsrAdmin ? 'list' : 'profile';
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedUserForView, setSelectedUserForView] = useState<User | null>(null);
@@ -84,13 +85,30 @@ export const UserManagement: React.FC = () => {
     currentUser.loginId === 'pravin' ||
     currentUser.id === 'USR-001' ||
     currentUser.id === 'USR-PRAVIN' ||
-    (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('pravin'))) ||
-    (currentUser.name && (currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('pravin')))
+    (currentUser.fullName && (currentUser.fullName.toLowerCase().includes('shreedhar') || currentUser.fullName.toLowerCase().includes('shridhar') || currentUser.fullName.toLowerCase().includes('shinde') || currentUser.fullName.toLowerCase().includes('pravin'))) ||
+    (currentUser.name && (currentUser.name.toLowerCase().includes('shreedhar') || currentUser.name.toLowerCase().includes('shridhar') || currentUser.name.toLowerCase().includes('shinde') || currentUser.name.toLowerCase().includes('pravin')))
   );
   
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+  const [permissionModalUser, setPermissionModalUser] = useState<User | null>(null);
+  const [tempAllowedTabs, setTempAllowedTabs] = useState<NavTab[]>([]);
+
+  const openPermissionModal = (u: User) => {
+    setPermissionModalUser(u);
+    setTempAllowedTabs(u.allowedTabs && u.allowedTabs.length > 0 ? u.allowedTabs : ALL_NAV_MODULES.map(m => m.id));
+  };
+
+  const handleSavePermissions = () => {
+    if (!permissionModalUser) return;
+    updateUser(permissionModalUser.id, { allowedTabs: tempAllowedTabs });
+    setPermissionModalUser(null);
+    showNotification(
+      language === 'mr' ? 'ऑप्शन ॲक्सेस परवानग्या यशस्वीरित्या अपडेट झाल्या!' : 'Option access permissions updated successfully!',
+      'success'
+    );
+  };
 
   React.useEffect(() => {
     try {
@@ -673,13 +691,13 @@ export const UserManagement: React.FC = () => {
 
   const renderUserList = () => (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs">
+      <div className="flex items-center justify-between bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-2xs">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-6 h-6 text-red-600" />
             {language === 'mr' ? 'युजर मॅनेजमेंट' : 'User Management'}
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-1">
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
             {language === 'mr' ? 'सिस्टममधील सर्व युजर्सची यादी' : 'List of all system users'}
           </p>
         </div>
@@ -688,193 +706,192 @@ export const UserManagement: React.FC = () => {
             setEditingUser(null);
             setView('create');
           }}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all active:scale-95 w-full sm:w-auto"
+          title={language === 'mr' ? 'नवीन युजर ॲड करा' : 'Add New User'}
+          className="w-11 h-11 bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
         >
           <UserPlus className="w-5 h-5" />
-          {language === 'mr' ? 'नवीन युजर' : 'Add New'}
         </button>
-      </div>
-
-      {/* CLEAN APP SHARE & INVITE BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-red-600/20 border border-red-500/30 rounded-xl flex items-center justify-center shrink-0">
-            <Share2 className="w-6 h-6 text-red-400" />
-          </div>
-          <div>
-            <h3 className="text-sm font-black tracking-wide text-white uppercase flex items-center gap-1.5">
-              <span>{language === 'mr' ? 'ॲप लॉगिन लिंक शेअर करा (Clean App Invitation Link)' : 'Share App Login Link'}</span>
-            </h3>
-            <p className="text-xs text-slate-300 font-medium mt-0.5">
-              {language === 'mr' ? 'कोणत्याही प्लॅटफॉर्मचा उल्लेख नसलेली कंपनीची थेट लॉगिन लिंक दुसऱ्या एम्प्लॉयीला पाठवा:' : 'Send official direct app login link to another employee or admin:'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              const msg = generateShareMessage(null, language);
-              shareViaWhatsApp(msg);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>{language === 'mr' ? 'WhatsApp वर लिंक पाठवा' : 'WhatsApp Share'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const link = getCleanAppLink();
-              navigator.clipboard.writeText(link);
-              setCopiedUserId('GENERAL_LINK');
-              showNotification(language === 'mr' ? 'अधिकृत ॲप लॉगिन लिंक क्लिपबोर्डवर कॉपी झाली!' : 'Official App Login Link copied!');
-              setTimeout(() => setCopiedUserId(null), 2500);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
-          >
-            {copiedUserId === 'GENERAL_LINK' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedUserId === 'GENERAL_LINK' ? (language === 'mr' ? 'कॉपी झाली!' : 'Copied!') : (language === 'mr' ? 'लिंक कॉपी करा' : 'Copy Link')}</span>
-          </button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {users.map((user) => (
           <div 
             key={user.id}
-            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all group"
+            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100">
-                  <UserIcon className="w-5 h-5 text-slate-400" />
+            <div>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 shrink-0">
+                    <UserIcon className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-slate-900 truncate">{user.fullName || user.name}</h4>
+                    <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">{user.fullName || user.name}</h4>
-                  <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <button 
-                  onClick={() => {
-                    setEditingUser(user);
-                    setView('create');
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.loginId !== 'pravin' && user.id !== 'USR-PRAVIN' && (
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Pencil Edit Icon Button */}
                   <button 
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const uName = user.fullName || user.name;
-                      const confirmMsg = language === 'mr'
-                        ? `तुम्हाला खात्री आहे का? युजर "${uName}" डिलीट केला जाईल. ही क्रिया केवळ एडमिन अधिकाराने होत आहे.`
-                        : `Are you sure? User "${uName}" will be deleted by Admin.`;
-                      if (window.confirm(confirmMsg)) {
-                        deleteUser(user.id);
-                      }
+                    onClick={() => {
+                      setEditingUser(user);
+                      setView('create');
                     }}
-                    className="px-2.5 py-1 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-lg transition-colors font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
-                    title={language === 'mr' ? 'एडमिनद्वारे युजर डिलीट करा' : 'Delete user (Admin)'}
+                    title={language === 'mr' ? 'माहिती एडिट करा' : 'Edit Details'}
+                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{language === 'mr' ? 'डिलीट' : 'Delete'}</span>
+                    <Edit2 className="w-4 h-4" />
                   </button>
-                )}
+                  {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.loginId !== 'pravin' && user.id !== 'USR-PRAVIN' && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const uName = user.fullName || user.name;
+                        const confirmMsg = language === 'mr'
+                          ? `तुम्हाला खात्री आहे का? युजर "${uName}" डिलीट केला जाईल.`
+                          : `Are you sure? User "${uName}" will be deleted.`;
+                        if (window.confirm(confirmMsg)) {
+                          deleteUser(user.id);
+                        }
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                      title={language === 'mr' ? 'युजर डिलीट करा' : 'Delete user'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-[11px] text-slate-600 font-semibold border-t border-slate-100 pt-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{user.village || user.territory || 'Headquarters'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>{user.phone}</span>
+                </div>
               </div>
             </div>
-            
-            <div className="space-y-2 text-[11px] text-slate-600 font-semibold border-t border-slate-50 pt-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {user.village || user.territory}
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                {user.phone}
-              </div>
 
-              {/* Module Access Permission Summary Badge */}
-              <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200 mt-2">
-                <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 text-emerald-600" />
+            {/* Option Access Bar with Config Icon */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-emerald-600" />
+                <span className="text-[11px] font-bold text-slate-700">
                   {language === 'mr' ? 'ऑप्शन ॲक्सेस:' : 'Option Access:'}
                 </span>
                 <span className="text-[10.5px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
                   {user.role === 'admin' || user.id === 'USR-001'
-                    ? (language === 'mr' ? 'सर्व ऑपशन्स सुरु (Full Admin)' : 'All Options (Full Admin)')
-                    : `${user.allowedTabs ? user.allowedTabs.length : ALL_NAV_MODULES.length}/${ALL_NAV_MODULES.length} ${language === 'mr' ? 'ऑपशन्स' : 'Options'}`}
+                    ? (language === 'mr' ? 'सर्व (Full)' : 'All')
+                    : `${user.allowedTabs ? user.allowedTabs.length : ALL_NAV_MODULES.length}/${ALL_NAV_MODULES.length}`}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-[10px] text-slate-500">ID:</span>
-                    <span className="font-mono text-slate-900 font-bold">{user.loginId}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-red-500" />
-                    <span className="text-[10px] text-slate-500">Pass:</span>
-                    <span className="font-mono text-red-600 font-bold">{user.password || '123'}</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => {
-                    setSelectedUserForView(user);
-                    setView('profile');
-                  }}
-                  className="text-red-600 hover:underline text-xs font-bold"
-                >
-                  View Details →
-                </button>
-              </div>
-
-              {/* WhatsApp Share & Copy User Link Button */}
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const msg = generateShareMessage(user, language);
-                    shareViaWhatsApp(msg);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl font-bold text-[10.5px] border border-emerald-200 transition-all cursor-pointer shadow-2xs"
-                  title={language === 'mr' ? 'या युजरला WhatsApp वर लॉगिन माहिती व लिंक पाठवा' : 'Send WhatsApp Invite'}
-                >
-                  <Send className="w-3 h-3 shrink-0" />
-                  <span>{language === 'mr' ? 'WhatsApp' : 'WhatsApp'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const userLink = getCleanAppLink(user.loginId);
-                    navigator.clipboard.writeText(userLink);
-                    setCopiedUserId(user.id);
-                    showNotification(
-                      language === 'mr' ? `${user.fullName || user.name} ची लॉगिन लिंक कॉपी झाली!` : 'User Login Link copied!',
-                      'info'
-                    );
-                    setTimeout(() => setCopiedUserId(null), 2500);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-slate-50 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10.5px] border border-slate-200 transition-all cursor-pointer shadow-2xs"
-                  title={language === 'mr' ? 'लॉगिन लिंक कॉपी करा' : 'Copy Link'}
-                >
-                  {copiedUserId === user.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedUserId === user.id ? (language === 'mr' ? 'कॉपी झाली' : 'Copied!') : (language === 'mr' ? 'लिंक कॉपी' : 'Copy Link')}</span>
-                </button>
-              </div>
+              {/* Option Access Config Icon Button Only */}
+              <button
+                type="button"
+                onClick={() => openPermissionModal(user)}
+                title={language === 'mr' ? 'ऑप्शन ॲक्सेस सेट करा' : 'Configure Option Access'}
+                className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition-all cursor-pointer border border-emerald-200 shadow-2xs active:scale-95 flex items-center justify-center"
+              >
+                <Key className="w-4 h-4" />
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* OPTION ACCESS PERMISSION MODAL */}
+      {permissionModalUser && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {language === 'mr' ? 'ऑप्शन ॲक्सेस परवानग्या' : 'Option Access Permissions'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {permissionModalUser.fullName || permissionModalUser.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setPermissionModalUser(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setTempAllowedTabs(ALL_NAV_MODULES.map(m => m.id))}
+                className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                {language === 'mr' ? 'सर्व निवडा' : 'Select All'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTempAllowedTabs([])}
+                className="px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                {language === 'mr' ? 'सर्व काढा' : 'Clear All'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              {ALL_NAV_MODULES.map((mod) => {
+                const isChecked = tempAllowedTabs.includes(mod.id);
+                return (
+                  <label
+                    key={`modal-mod-${mod.id}`}
+                    className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
+                      isChecked ? 'bg-white border-emerald-500 text-slate-900 font-bold' : 'bg-white/60 border-slate-200 text-slate-400'
+                    }`}
+                  >
+                    <span className="text-xs flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setTempAllowedTabs(tempAllowedTabs.filter(id => id !== mod.id));
+                          } else {
+                            setTempAllowedTabs([...tempAllowedTabs, mod.id]);
+                          }
+                        }}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 cursor-pointer"
+                      />
+                      <span>{language === 'mr' ? mod.labelMr : mod.labelEn}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setPermissionModalUser(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                {language === 'mr' ? 'रद्द करा' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePermissions}
+                className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-emerald-700 cursor-pointer"
+              >
+                {language === 'mr' ? 'परवानग्या सेव्ह करा' : 'Save Permissions'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

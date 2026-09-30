@@ -506,7 +506,7 @@ export const PriceList: React.FC = () => {
               </div>
 
               {/* Group Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-auto" style={{ touchAction: 'pan-x pan-y', WebkitOverflowScrolling: 'touch' }}>
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-100 text-slate-700 uppercase font-black text-[10px] tracking-wider border-b border-slate-300">
                     <tr>

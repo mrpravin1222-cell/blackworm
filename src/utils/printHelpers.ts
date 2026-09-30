@@ -386,7 +386,11 @@ export const exportElementToPDF = async (
     }
 
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-    pdf.save(cleanFilename);
+    const dataUri = pdf.output('datauristring');
+    const success = downloadFileAcrossPlatforms(dataUri, cleanFilename, 'application/pdf');
+    if (!success) {
+      pdf.save(cleanFilename);
+    }
 
     if (options?.onComplete) options.onComplete();
     return true;
@@ -724,12 +728,77 @@ export const triggerPrint = async (options?: { onBeforePrint?: () => void; onAft
 };
 
 /**
- * Export data array to formatted Excel file (.xlsx)
+ * Universal cross-platform file downloader that works seamlessly in Android WebViews, APK wrappers, and standard browsers.
+ */
+export const downloadFileAcrossPlatforms = (blobOrDataUri: Blob | string, filename: string, mimeType: string = 'application/pdf') => {
+  try {
+    let url = '';
+    let isDataUri = false;
+
+    if (typeof blobOrDataUri === 'string') {
+      url = blobOrDataUri;
+      isDataUri = true;
+    } else {
+      url = URL.createObjectURL(blobOrDataUri);
+    }
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.style.display = 'none';
+    
+    document.body.appendChild(anchor);
+    
+    try {
+      anchor.click();
+    } catch (e) {
+      if (isDataUri) {
+        const win = window.open();
+        if (win) {
+          win.document.write(`<iframe src="${url}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+      } else {
+        window.open(url, '_blank');
+      }
+    }
+
+    setTimeout(() => {
+      try {
+        document.body.removeChild(anchor);
+        if (!isDataUri) {
+          URL.revokeObjectURL(url);
+        }
+      } catch (_) {}
+    }, 2000);
+
+    return true;
+  } catch (err) {
+    console.error('Cross-platform download helper error:', err);
+    return false;
+  }
+};
+
+/**
+ * Export data array to formatted Excel file (.xlsx) with cross-platform WebView fallback
  */
 export const exportDataToExcel = (data: any[], fileName: string, sheetName: string = 'Sheet1') => {
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  const cleanName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
-  XLSX.writeFile(wb, cleanName);
+  try {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    const cleanName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
+    XLSX.writeFile(wb, cleanName);
+  } catch (err) {
+    console.error('XLSX write error, trying fallback:', err);
+    try {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      downloadFileAcrossPlatforms(blob, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    } catch (e) {
+      console.error('Excel export fallback error:', e);
+    }
+  }
 };

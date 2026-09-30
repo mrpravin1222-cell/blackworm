@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+html, body, #root,
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto,
+div[class*="overflow-y"],
+div[class*="overflow-auto"] {
+  height: auto;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: auto;
+  overscroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
+}
+
 /* Hide Chrome, Safari, Edge, Opera number input steppers/arrows */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
