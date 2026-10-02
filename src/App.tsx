@@ -144,6 +144,13 @@ const MainContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Auto-redirect to allowed tab if user somehow lands on an unauthorized tab
+  React.useEffect(() => {
+    if (currentUser && !isTabAllowedForUser(activeTab, currentUser)) {
+      setActiveTab('target-sheet');
+    }
+  }, [currentUser, activeTab, setActiveTab]);
+
   if (!currentUser) {
     return (
       <div className="bg-slate-100 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans selection:bg-red-500 selection:text-white">
@@ -163,13 +170,6 @@ const MainContent: React.FC = () => {
       </div>
     );
   }
-
-  // Auto-redirect to allowed tab if user somehow lands on an unauthorized tab
-  React.useEffect(() => {
-    if (currentUser && !isTabAllowedForUser(activeTab, currentUser)) {
-      setActiveTab('target-sheet');
-    }
-  }, [currentUser, activeTab, setActiveTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -203,10 +203,11 @@ const MainContent: React.FC = () => {
   };
 
   const allBottomNavItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग', labelEn: 'Travelling', icon: Compass },
-    { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
-    { id: 'target-sheet', labelMr: 'टार्गेट', labelEn: 'Target', icon: Target },
+    { id: 'dashboard', labelMr: 'Dashboard', labelEn: 'Dashboard', icon: LayoutDashboard },
+    { id: 'target-sheet', labelMr: 'Target', labelEn: 'Target', icon: Target },
+    { id: 'order-collection', labelMr: 'Orders', labelEn: 'Orders', icon: Receipt },
+    { id: 'dealer-form', labelMr: 'Dealer', labelEn: 'Dealer', icon: Users },
+    { id: 'travel-expenses', labelMr: 'Travel', labelEn: 'Travel', icon: Compass },
   ];
 
   const mobileBottomNavItems = allBottomNavItems.filter((item) => isTabAllowedForUser(item.id, currentUser));
@@ -251,8 +252,8 @@ const MainContent: React.FC = () => {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] leading-tight truncate px-0.5">
-                  {item.labelMr}
+                <span className="text-[10px] leading-tight truncate px-0.5 font-bold">
+                  {item.labelEn}
                 </span>
               </button>
             );

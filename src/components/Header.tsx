@@ -54,17 +54,15 @@ export const Header: React.FC = React.memo(() => {
   const pendingExpensesCount = travelExpenses.filter((e) => e.status === 'pending').length;
 
   const navItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }>; badge?: number; hasUpdate?: boolean }[] = [
-    { id: 'target-sheet', labelMr: 'टार्गेट सेट', labelEn: 'Target Sheet', icon: Target, hasUpdate: true },
-    { id: 'order-collection', labelMr: 'ऑर्डर कॅल्क्युलेट', labelEn: 'Order Calculator', icon: Receipt, hasUpdate: true },
-    { id: 'dealer-form', labelMr: 'डीलर', labelEn: 'Dealer', icon: Users, badge: pendingDealersCount, hasUpdate: true },
-    { id: 'travel-expenses', labelMr: 'ट्रॅव्हल्स', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
-    { id: 'scheme', labelMr: 'स्कीम', labelEn: 'Scheme', icon: Gift },
-    { id: 'daily-activity', labelMr: 'लागवड', labelEn: 'Cultivation', icon: Sprout },
-    { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Setting', icon: Settings },
-    { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
+    { id: 'target-sheet', labelMr: 'टार्गेट शीट', labelEn: 'Target Sheet', icon: Target },
+    { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: Users },
+    { id: 'order-collection', labelMr: 'ऑर्डर अँड कलेक्शन', labelEn: 'Order & Collection', icon: Receipt },
     { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
-    { id: 'reporting', labelMr: 'रिपोर्ट', labelEn: 'Report', icon: BarChart3, hasUpdate: true },
+    { id: 'dealer-form', labelMr: 'डीलर', labelEn: 'Dealer', icon: UserCheck, badge: pendingDealersCount },
+    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग एक्सप्रेस', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount },
+    { id: 'scheme', labelMr: 'स्कीम', labelEn: 'Scheme', icon: Gift },
+    { id: 'daily-activity', labelMr: 'डेली रिपोर्ट', labelEn: 'Daily Report', icon: Sprout },
+    { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Setting', icon: Settings },
   ];
 
   const allowedNavItems = navItems.filter((item) => isTabAllowedForUser(item.id, currentUser));
@@ -94,13 +92,23 @@ export const Header: React.FC = React.memo(() => {
 
             {/* 2. Company Name */}
             <div className="flex-1 min-w-0 text-center px-1">
-              <h1 className="text-[11px] min-[360px]:text-xs sm:text-base md:text-lg lg:text-xl font-black text-red-600 tracking-tight uppercase leading-tight truncate">
+              <h1 className="text-[10px] min-[320px]:text-[11px] sm:text-base md:text-lg lg:text-xl font-black text-red-600 tracking-tighter uppercase leading-tight truncate whitespace-nowrap">
                 {language === 'mr' ? 'ब्लॅकवर्म ॲग्रिटेक प्रा. लि.' : 'BLACKWORM AGRITECH PVT LTD'}
               </h1>
             </div>
 
-            {/* 3 & 4. Right Utility Icons: Language & Menu */}
+            {/* 3 & 4. Right Utility Icons: User Badge (desktop only to prevent header overlap), Language & Menu */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {currentUser && (
+                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 text-xs shrink-0 max-w-[280px]">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span className="font-extrabold text-slate-800 truncate">{currentUser.fullName || currentUser.name}</span>
+                  <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase shrink-0">
+                    ({currentUser.designation || currentUser.role})
+                  </span>
+                </div>
+              )}
+
               <button
                 type="button"
                 id="lang-toggle-btn"
@@ -148,7 +156,7 @@ export const Header: React.FC = React.memo(() => {
                     setMobileMenuOpen(false);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black tracking-wide transition-all cursor-pointer whitespace-nowrap relative ${
                     isActive
                       ? 'bg-red-600 text-white shadow-xs'
                       : 'text-slate-700 hover:bg-slate-200/70 hover:text-slate-900'
@@ -178,8 +186,11 @@ export const Header: React.FC = React.memo(() => {
                 {language === 'mr' ? 'मेन्यू पर्याय (Navigation Menu)' : 'Navigation Menu'}
               </span>
               {currentUser && (
-                <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                  👤 {currentUser.name} ({currentUser.role})
+                <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5 flex-wrap">
+                  <span>👤 {currentUser.fullName || currentUser.name}</span>
+                  <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase">
+                    ({currentUser.designation || currentUser.role})
+                  </span>
                 </span>
               )}
             </div>
@@ -197,7 +208,7 @@ export const Header: React.FC = React.memo(() => {
                       setMobileMenuOpen(false);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer active:scale-98 relative ${
+                    className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-black tracking-wide transition-all cursor-pointer active:scale-98 relative ${
                       isActive
                         ? 'bg-red-600 text-white shadow-xs'
                         : 'hover:bg-slate-100 text-slate-800 border border-slate-200 bg-slate-50/80'

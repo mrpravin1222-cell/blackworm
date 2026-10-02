@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { DailyActivity, ActivityType } from '../types';
+import { DailyActivity, ActivityType, User as UserType } from '../types';
+import { sortUsersByRank } from '../utils/permissionHelpers';
 import * as XLSX from 'xlsx';
 import {
   CalendarCheck2,
@@ -72,9 +73,12 @@ export const DailyActivityLog: React.FC = React.memo(() => {
 
   const isAdmin = currentUser
     ? currentUser.role === 'admin' ||
-      currentUser.loginId === 'admin' ||
-      currentUser.loginId === 'pravin waghmare'
+      currentUser.loginId === 'admin'
     : false;
+
+  const sortedUsers = useMemo(() => {
+    return sortUsersByRank(users);
+  }, [users]);
 
   // Filter states - Default to 'all' so entries from all devices and dates are immediately visible
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -683,15 +687,18 @@ export const DailyActivityLog: React.FC = React.memo(() => {
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-red-500"
               >
                 <option value="ALL">👤 {language === 'mr' ? 'सर्व अधिकारी (All Officers)' : 'All Officers'}</option>
-                {users.map((u) => (
+                {sortedUsers.map((u) => (
                   <option key={`officer-filter-${u.id}`} value={u.id}>
                     {u.fullName || u.name} ({u.designation || u.role})
                   </option>
                 ))}
               </select>
             ) : (
-              <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 truncate">
-                👤 {currentUser?.fullName || currentUser?.name}
+              <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 truncate flex items-center gap-1.5 flex-wrap">
+                <span>👤 {currentUser?.fullName || currentUser?.name}</span>
+                <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase">
+                  ({currentUser?.designation || currentUser?.role})
+                </span>
               </div>
             )}
           </div>
@@ -1045,7 +1052,7 @@ export const DailyActivityLog: React.FC = React.memo(() => {
                       onChange={(e) => setFormOfficerId(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-red-500"
                     >
-                      {users.map((u) => (
+                      {sortedUsers.map((u) => (
                         <option key={`modal-officer-${u.id}`} value={u.id}>
                           {u.fullName || u.name}
                         </option>

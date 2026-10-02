@@ -1,31 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BLACKWORM_LOGO_BASE64, BLACKWORM_USER_UPLOADED_LOGO_BASE64 } from '../assets/logoBase64';
-import { NavTab } from '../types';
 import {
   Building2,
   Landmark,
   Save,
-  Phone,
-  Mail,
-  MapPin,
   Upload,
-  RotateCcw,
   User as UserIcon,
-  ShieldCheck,
   Lock,
-  Heart,
-  Briefcase,
-  Key,
-  Copy,
-  Check,
-  CheckCircle2,
-  FileText,
-  CreditCard,
   Download,
   Database,
   Globe,
-  Users,
+  Edit2,
+  RotateCcw,
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
@@ -33,7 +20,6 @@ export const Settings: React.FC = () => {
     language,
     setLanguage,
     currentUser,
-    users,
     updateUser,
     companyDetails,
     updateCompanyDetails,
@@ -44,14 +30,12 @@ export const Settings: React.FC = () => {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // Admin company forms
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [companyForm, setCompanyForm] = useState({ ...companyDetails });
   const [bankForm, setBankForm] = useState({ ...companyDetails.bankDetails });
   const [importText, setImportText] = useState('');
   const [showImportBox, setShowImportBox] = useState(false);
 
-  // User personal profile form
   const [userProfileForm, setUserProfileForm] = useState({
     fullName: currentUser?.fullName || currentUser?.name || '',
     phone: currentUser?.phone || '',
@@ -62,8 +46,6 @@ export const Settings: React.FC = () => {
     password: currentUser?.password || '',
     territory: currentUser?.territory || '',
   });
-
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     setCompanyForm({ ...companyDetails });
@@ -85,83 +67,46 @@ export const Settings: React.FC = () => {
     }
   }, [currentUser]);
 
-  const handleCopy = (text: string, key: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    showNotification(language === 'mr' ? 'क्लिपबोर्डवर कॉपी झाले!' : 'Copied to clipboard!', 'info');
-    setTimeout(() => setCopiedKey(null), 2000);
+  const handleSaveAll = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    if (currentUser) {
+      updateUser(currentUser.id, {
+        fullName: userProfileForm.fullName,
+        name: userProfileForm.fullName,
+        phone: userProfileForm.phone,
+        email: userProfileForm.email,
+        village: userProfileForm.village,
+        address: userProfileForm.address,
+        bloodGroup: userProfileForm.bloodGroup,
+        password: userProfileForm.password,
+        territory: userProfileForm.territory,
+      });
+    }
+
+    if (isAdmin) {
+      updateCompanyDetails({
+        ...companyForm,
+        bankDetails: bankForm,
+      });
+    }
+
+    setIsEditing(false);
+    showNotification(language === 'mr' ? 'सर्व माहिती यशस्वीरित्या सेव्ह झाली!' : 'All information saved successfully!', 'success');
   };
 
-  // Single-click consolidated bank details copy: Company Name -> Bank Name -> Account No -> IFSC Code
-  const handleCopyFullBankDetails = () => {
-    const companyName = companyDetails.bankDetails?.accountHolder || companyDetails.name || 'Blackworm Agritech Pvt Ltd';
-    const bankName = companyDetails.bankDetails?.bankName || 'Rajarambapu Sahakari Bank Limited, Miraj';
-    const accountNo = companyDetails.bankDetails?.accountNo || '035330268109560';
-    const ifsc = companyDetails.bankDetails?.ifsc || 'RRBP0000035';
+  const [isEditing, setIsEditing] = useState(false);
 
-    const fullBankText = `कंपनीचे नाव: ${companyName}\nबँकेचे नाव: ${bankName}\nखाते क्रमांक: ${accountNo}\nIFSC Code: ${ifsc}`;
-    handleCopy(fullBankText, 'full_bank');
-  };
-
-  // Handle direct auto-save for company profile fields
-  const handleCompanyFieldChange = (field: keyof typeof companyForm, value: any) => {
-    const updated = { ...companyForm, [field]: value };
-    setCompanyForm(updated);
-    updateCompanyDetails({
-      ...updated,
-      bankDetails: bankForm,
-    });
-  };
-
-  // Handle direct auto-save for bank detail fields
-  const handleBankFieldChange = (field: keyof typeof bankForm, value: any) => {
-    const updatedBank = { ...bankForm, [field]: value };
-    setBankForm(updatedBank);
-    updateCompanyDetails({
-      ...companyForm,
-      bankDetails: updatedBank,
-    });
-  };
-
-  // Admin Logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert(language === 'mr' ? 'कृपया वैध इमेज फाईल (PNG, JPG, SVG) निवडा.' : 'Please choose a valid image file.');
-      return;
-    }
-
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      const updated = { ...companyForm, logoUrl: base64 };
-      setCompanyForm(updated);
-      updateCompanyDetails({
-        ...updated,
-        bankDetails: bankForm,
-      }, true);
+      setCompanyForm(prev => ({ ...prev, logoUrl: base64 }));
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleSaveUserProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) return;
-
-    updateUser(currentUser.id, {
-      fullName: userProfileForm.fullName,
-      name: userProfileForm.fullName,
-      phone: userProfileForm.phone,
-      email: userProfileForm.email,
-      village: userProfileForm.village,
-      address: userProfileForm.address,
-      bloodGroup: userProfileForm.bloodGroup,
-      password: userProfileForm.password,
-      territory: userProfileForm.territory,
-    });
   };
 
   const handleDownloadBackup = () => {
@@ -188,563 +133,444 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-in fade-in duration-150">
-      {/* ========================================================================= */}
-      {/* SCENARIO 1: REGULAR USER LOGGED IN (Sales Officer / ASM / Field Officer) */}
-      {/* ========================================================================= */}
-      {!isAdmin && (
-        <div className="space-y-6">
-          {/* User Personal Profile Edit Form */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100">
-                  <UserIcon className="w-5 h-5" />
+    <div className="max-w-5xl mx-auto pb-16 animate-in fade-in duration-300">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Unified Header with Edit Button */}
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-red-600" />
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
+              {language === 'mr' ? 'कंपनी व वैयक्तिक माहिती' : 'Company & Personal Information'}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <button
+                onClick={() => handleSaveAll()}
+                className="flex items-center gap-1.5 px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                {language === 'mr' ? 'सर्व माहिती सेव्ह करा' : 'Save All Information'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-md shadow-blue-600/10 cursor-pointer"
+              >
+                <Edit2 className="w-4 h-4" />
+                {language === 'mr' ? 'माहिती एडिट करा' : 'Edit Information'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          <div className="p-8 space-y-10">
+            {/* ADMIN ONLY: COMPANY & BANK EDIT SECTION */}
+            {isAdmin && (
+              <div className="space-y-8">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <div className="w-1.5 h-4 bg-red-600 rounded-full" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'कंपनीची माहिती' : 'Company Details'}</h4>
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {language === 'mr' ? 'माझी वैयक्तिक माहिती (Personal Profile)' : 'My Personal Profile'}
-                  </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कंपनीचे नाव' : 'Company Name'}</label>
+                    <input
+                      type="text"
+                      value={companyForm.name}
+                      onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'टॅगलाईन' : 'Tagline'}</label>
+                    <input
+                      type="text"
+                      value={companyForm.tagline}
+                      onChange={(e) => setCompanyForm({ ...companyForm, tagline: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">CIN Number</label>
+                    <input
+                      type="text"
+                      value={companyForm.cin}
+                      onChange={(e) => setCompanyForm({ ...companyForm, cin: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">GST Number</label>
+                    <input
+                      type="text"
+                      value={companyForm.gstNo}
+                      onChange={(e) => setCompanyForm({ ...companyForm, gstNo: e.target.value.toUpperCase() })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm uppercase focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'नोंदणीकृत पत्ता' : 'Registered Address'}</label>
+                    <input
+                      type="text"
+                      value={companyForm.address}
+                      onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Phone</label>
+                    <input
+                      type="text"
+                      value={companyForm.phone}
+                      onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Email</label>
+                    <input
+                      type="email"
+                      value={companyForm.email}
+                      onChange={(e) => setCompanyForm({ ...companyForm, email: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 cursor-pointer transition-all w-fit"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {language === 'mr' ? 'कंपनी लोगो अपलोड करा' : 'Upload Company Logo'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 mt-10">
+                  <div className="w-1.5 h-4 bg-emerald-600 rounded-full" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'बँक तपशील' : 'Bank Details'}</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कंपनीचे नाव (खातेधारक)' : 'Company Name (A/C Holder)'}</label>
+                    <input
+                      type="text"
+                      value={bankForm.accountHolder}
+                      onChange={(e) => setBankForm({ ...bankForm, accountHolder: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'बँकेचे नाव' : 'Bank Name'}</label>
+                    <input
+                      type="text"
+                      value={bankForm.bankName}
+                      onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'खाते क्रमांक' : 'Account Number'}</label>
+                    <input
+                      type="text"
+                      value={bankForm.accountNo}
+                      onChange={(e) => setBankForm({ ...bankForm, accountNo: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono font-bold text-sm focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">IFSC Code</label>
+                    <input
+                      type="text"
+                      value={bankForm.ifsc}
+                      onChange={(e) => setBankForm({ ...bankForm, ifsc: e.target.value.toUpperCase() })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono font-bold uppercase text-sm focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
               </div>
+            )}
 
-              <span className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                {currentUser?.designation || currentUser?.role || 'User'}
-              </span>
-            </div>
-
-            <form onSubmit={handleSaveUserProfile} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
-                {/* Full Name */}
+            {/* PERSONAL PROFILE EDIT SECTION */}
+            <div className="space-y-8 mt-10">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <div className="w-1.5 h-4 bg-red-500 rounded-full" />
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'वैयक्तिक माहिती' : 'Personal Details'}</h4>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700">
-                    {language === 'mr' ? 'पूर्ण नाव (Full Name) *' : 'Full Name *'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'पूर्ण नाव' : 'Full Name'}</label>
                   <input
                     type="text"
-                    required
                     value={userProfileForm.fullName}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, fullName: e.target.value })}
-                    placeholder={language === 'mr' ? 'तुमचे पूर्ण नाव' : 'Your Full Name'}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-bold bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Mobile / Phone */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-red-600" />
-                    {language === 'mr' ? 'मोबाईल नंबर (Mobile Number) *' : 'Mobile Number *'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'मोबाईल नंबर' : 'Mobile Number'}</label>
                   <input
                     type="tel"
-                    required
                     value={userProfileForm.phone}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, phone: e.target.value })}
-                    placeholder="+91 XXXXXXXXXX"
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono font-bold bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Email */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Mail className="w-3 h-3 text-red-600" />
-                    {language === 'mr' ? 'ईमेल पत्ता (Email Address)' : 'Email Address'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Email</label>
                   <input
                     type="email"
                     value={userProfileForm.email}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, email: e.target.value })}
-                    placeholder="you@company.com"
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Village / Town */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-emerald-600" />
-                    {language === 'mr' ? 'गाव / शहर (Village / Town)' : 'Village / Town'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'गाव / शहर' : 'Village / Town'}</label>
                   <input
                     type="text"
                     value={userProfileForm.village}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, village: e.target.value })}
-                    placeholder={language === 'mr' ? 'गाव / तालुका' : 'Village / Town'}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Blood Group */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Heart className="w-3 h-3 text-red-500" />
-                    {language === 'mr' ? 'रक्तगट (Blood Group)' : 'Blood Group'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'ब्लड ग्रुप' : 'Blood Group'}</label>
                   <input
                     type="text"
                     value={userProfileForm.bloodGroup}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, bloodGroup: e.target.value })}
-                    placeholder="O+, A+, B+, AB+..."
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-bold uppercase bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-red-600 text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Login Password */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Key className="w-3 h-3 text-amber-600" />
-                    {language === 'mr' ? 'लॉगिन पासवर्ड (Password)' : 'Login Password'}
-                  </label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'पासवर्ड' : 'Password'}</label>
                   <input
                     type="text"
                     value={userProfileForm.password}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, password: e.target.value })}
-                    placeholder="Password"
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Residential Address */}
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-700">
-                    {language === 'mr' ? 'घरचा पत्ता (Residential Address)' : 'Residential Address'}
-                  </label>
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'रहिवासी पत्ता' : 'Address'}</label>
                   <input
                     type="text"
                     value={userProfileForm.address}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, address: e.target.value })}
-                    placeholder={language === 'mr' ? 'पूर्ण पत्ता' : 'Complete Residential Address'}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
                   />
                 </div>
-
-                {/* Territory / Area */}
-                <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                    <Briefcase className="w-3 h-3 text-slate-600" />
-                    {language === 'mr' ? 'कार्यक्षेत्र (Territory)' : 'Working Territory'}
-                  </label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कार्यक्षेत्र' : 'Territory'}</label>
                   <input
                     type="text"
                     value={userProfileForm.territory}
                     onChange={(e) => setUserProfileForm({ ...userProfileForm, territory: e.target.value })}
-                    placeholder={language === 'mr' ? 'तालुके / जिल्हे' : 'Assigned Territory'}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
                   />
                 </div>
               </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all active:scale-95 cursor-pointer"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{language === 'mr' ? 'माझी प्रोफाइल सेव्ह करा' : 'Save My Profile'}</span>
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-
-          {/* SINGLE CONSOLIDATED BOX FOR COMPANY DETAILS (READ-ONLY FOR USER) */}
-          <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm overflow-hidden">
-            {/* Box Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-xs">
+        ) : (
+          <div className="p-0">
+            {/* COMPANY INFO ROW: LOGO FLUSH ON LEFT */}
+            <div className="flex flex-col lg:flex-row border-b border-slate-100">
+              <div className="flex items-center gap-6 lg:w-1/2">
+                {/* Logo container with no padding on left, flush with border */}
+                <div className="w-32 h-32 bg-white flex items-center justify-center shrink-0 border-r border-slate-100">
                   <img
                     src={companyDetails.logoUrl || BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64}
-                    alt="Blackworm Logo"
-                    className="max-h-full max-w-full object-contain mix-blend-multiply"
-                  />
-                </div>
-                <div>
-                  <h3 className="text-base font-black tracking-tight text-white uppercase">
-                    {companyDetails.name}
-                  </h3>
-                  <p className="text-[11px] font-bold text-emerald-400 tracking-wide">
-                    {companyDetails.tagline || 'Agriculture with new perspective'}
-                  </p>
-                </div>
-              </div>
-
-              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 self-start sm:self-center">
-                {language === 'mr' ? 'अधिकृत कंपनी माहिती (Read-Only)' : 'Official Company Credentials'}
-              </span>
-            </div>
-
-            {/* Consolidated Box Content (All in one unified card) */}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 text-xs">
-              {/* Left Column: Legal & Contact Details */}
-              <div className="space-y-4 pr-0 md:pr-4">
-                <h4 className="text-xs font-black uppercase text-red-700 tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-100">
-                  <Building2 className="w-4 h-4 text-red-600" />
-                  <span>{language === 'mr' ? 'नोंदणी व संपर्क तपशील' : 'Registration & Contact'}</span>
-                </h4>
-
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-600">CIN No:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-black text-slate-900">{companyDetails.cin}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(companyDetails.cin, 'cin')}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                        title="Copy CIN"
-                      >
-                        {copiedKey === 'cin' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-600">GSTIN No:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-black text-slate-900 uppercase">{companyDetails.gstNo}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(companyDetails.gstNo, 'gst')}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                        title="Copy GST"
-                      >
-                        {copiedKey === 'gst' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-600 flex items-center gap-1.5 text-xs">
-                        <MapPin className="w-4 h-4 text-red-600" />
-                        {language === 'mr' ? 'नोंदणीकृत पत्ता:' : 'Registered Address:'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(companyDetails.address, 'address')}
-                        className="px-2.5 py-1 bg-white border border-slate-300 hover:border-red-500 hover:text-red-600 text-slate-700 rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-all active:scale-95 cursor-pointer"
-                        title={language === 'mr' ? 'संपूर्ण पत्ता कॉपी करा' : 'Copy Full Address'}
-                      >
-                        {copiedKey === 'address' ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-700 font-bold">{language === 'mr' ? 'पत्ता कॉपी झाला' : 'Address Copied'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>{language === 'mr' ? 'पत्ता कॉपी करा' : 'Copy Address'}</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <p className="font-semibold text-slate-900 pl-5 leading-relaxed text-xs">
-                      {companyDetails.address}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Phone className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                        <span className="font-mono font-bold text-slate-900 truncate">{companyDetails.phone}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(companyDetails.phone, 'phone')}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                        title="Copy Phone"
-                      >
-                        {copiedKey === 'phone' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Mail className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                        <span className="font-semibold text-slate-900 text-[11px] truncate">{companyDetails.email}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(companyDetails.email, 'email')}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                        title="Copy Email"
-                      >
-                        {copiedKey === 'email' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Official Bank Account Details */}
-              <div className="space-y-4 pt-4 md:pt-0 pl-0 md:pl-6">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 gap-2 flex-wrap">
-                  <h4 className="text-xs font-black uppercase text-emerald-700 tracking-wider flex items-center gap-1.5">
-                    <Landmark className="w-4 h-4 text-emerald-600" />
-                    <span>{language === 'mr' ? 'अधिकृत बँक खाते तपशील' : 'Official Bank Details'}</span>
-                  </h4>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyFullBankDetails}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
-                    title={language === 'mr' ? 'सर्व बँक तपशील एका क्लिकमध्ये कॉपी करा' : 'Copy All Bank Details in 1-Click'}
-                  >
-                    {copiedKey === 'full_bank' ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-white" />
-                        <span>{language === 'mr' ? 'सर्व बँक तपशील कॉपी झाले!' : 'Bank Details Copied!'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{language === 'mr' ? 'बँक डिटेल्स कॉपी करा' : 'Copy Bank Details'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {/* 1. Company / Account Holder Name */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '१. कंपनीचे नाव (खातेधारक)' : '1. Company Name (Account Holder)'}</span>
-                      <span className="font-bold text-slate-900 text-xs">
-                        {companyDetails.bankDetails?.accountHolder || companyDetails.name || 'Blackworm Agritech Pvt Ltd'}
-                      </span>
-                    </div>
-                    <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                  </div>
-
-                  {/* 2. Bank Name */}
-                  <div className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-0.5">
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">{language === 'mr' ? '२. बँकेचे नाव' : '2. Bank Name'}</span>
-                    <p className="font-black text-slate-900 text-xs">
-                      {companyDetails.bankDetails?.bankName || 'Rajarambapu Sahakari Bank Limited, Miraj'}
-                    </p>
-                  </div>
-
-                  {/* 3. Account Number */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '३. खाते क्रमांक (A/C No)' : '3. Account Number'}</span>
-                    <span className="font-mono font-black text-slate-900 text-sm tracking-wider">
-                      {companyDetails.bankDetails?.accountNo || '035330268109560'}
-                    </span>
-                  </div>
-
-                  {/* 4. IFSC Code */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{language === 'mr' ? '४. IFSC Code' : '4. IFSC Code'}</span>
-                    <span className="font-mono font-black text-slate-900 text-xs uppercase tracking-wider">
-                      {companyDetails.bankDetails?.ifsc || 'RRBP0000035'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SCENARIO 2: ADMIN LOGGED IN (Full Management & Auto-Saved Editable Forms)  */}
-      {/* ========================================================================= */}
-      {isAdmin && (
-        <div className="space-y-6">
-          {/* Section 1: Legal Company Profile with Small Side Logo Upload */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100 shrink-0">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {language === 'mr' ? 'कंपनी प्रोफाइल व पत्ता (Company Profile)' : 'Company Profile & Registration'}
-                  </h2>
-                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    <span>{language === 'mr' ? 'माहिती भरताच आपोआप सेव्ह होते (Auto-saved)' : 'Changes save automatically'}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Compact Logo Upload Box on the Side */}
-              <div className="flex items-center gap-2 shrink-0">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  title={language === 'mr' ? 'कंपनी लोगो बदलण्यासाठी येथे क्लिक करा' : 'Click here to upload/change logo'}
-                  className="relative w-16 h-12 sm:w-20 sm:h-14 rounded-xl border-2 border-dashed border-red-300 hover:border-red-500 bg-slate-50 hover:bg-red-50/40 p-1 flex items-center justify-center shrink-0 cursor-pointer group transition-all shadow-2xs overflow-hidden"
-                >
-                  <img
-                    src={companyForm.logoUrl || BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64}
                     alt="Logo"
-                    className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform select-none"
+                    className="max-h-[85%] max-w-[85%] object-contain mix-blend-multiply"
                   />
-                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity text-white">
-                    <Upload className="w-3.5 h-3.5" />
-                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'कंपनीचे नाव (Company Name)' : 'Company Name'}</label>
-                <input
-                  type="text"
-                  value={companyForm.name}
-                  onChange={(e) => handleCompanyFieldChange('name', e.target.value)}
-                  placeholder="Blackworm Agritech Pvt Ltd"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-bold bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'टॅगलाईन (Tagline)' : 'Tagline'}</label>
-                <input
-                  type="text"
-                  value={companyForm.tagline}
-                  onChange={(e) => handleCompanyFieldChange('tagline', e.target.value)}
-                  placeholder="Agriculture with new perspective"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden italic bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">CIN Number</label>
-                <input
-                  type="text"
-                  value={companyForm.cin}
-                  onChange={(e) => handleCompanyFieldChange('cin', e.target.value)}
-                  placeholder="U01409PN2022PTC217246"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono font-semibold bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">GST Number</label>
-                <input
-                  type="text"
-                  value={companyForm.gstNo}
-                  onChange={(e) => handleCompanyFieldChange('gstNo', e.target.value.toUpperCase())}
-                  placeholder="27AALCB3069J1ZC"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono font-semibold uppercase bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'नोंदणीकृत पत्ता (Registered Address)' : 'Registered Address'}</label>
-                <input
-                  type="text"
-                  value={companyForm.address}
-                  onChange={(e) => handleCompanyFieldChange('address', e.target.value)}
-                  placeholder="Gat No. 17 Vijaynagar (Mhaisal), Tal - Miraj, Dist - Sangli. 416409."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'संपर्क फोन (Phone)' : 'Phone Number'}</label>
-                <input
-                  type="text"
-                  value={companyForm.phone}
-                  onChange={(e) => handleCompanyFieldChange('phone', e.target.value)}
-                  placeholder="+91 7798716201"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden font-mono bg-slate-50 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'ईमेल (Email Address)' : 'Email Address'}</label>
-                <input
-                  type="email"
-                  value={companyForm.email}
-                  onChange={(e) => handleCompanyFieldChange('email', e.target.value)}
-                  placeholder="blackwormagritechpvtltd@gmail.com"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-red-500 focus:bg-white focus:outline-hidden bg-slate-50 transition-colors"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Official Bank Account Details (Auto-Saved) */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shrink-0">
-                  <Landmark className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {language === 'mr' ? 'अधिकृत बँक खाते माहिती (Bank Details)' : 'Official Bank Account Details'}
-                  </h2>
-                  <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    <span>{language === 'mr' ? 'माहिती भरताच आपोआप सेव्ह होते (Auto-saved)' : 'Changes save automatically'}</span>
+                <div className="min-w-0 pr-4">
+                  <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                    {companyDetails.name}
+                  </h4>
+                  <p className="text-sm font-bold text-red-600 italic mt-0.5 tracking-wide">
+                    Agriculture with new perspective
                   </p>
                 </div>
               </div>
+
+              {/* Company contact/reg info */}
+              <div className="p-8 flex-1 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CIN Number</p>
+                  <p className="text-sm font-bold text-slate-700 font-mono">{companyDetails.cin}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GSTIN Number</p>
+                  <p className="text-sm font-bold text-slate-700 font-mono uppercase">{companyDetails.gstNo}</p>
+                </div>
+                <div className="sm:col-span-2 space-y-0.5">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'mr' ? 'नोंदणीकृत पत्ता' : 'Address'}</p>
+                  <p className="text-sm font-semibold text-slate-600 leading-tight">{companyDetails.address}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone & Email</p>
+                  <p className="text-sm font-bold text-slate-700 whitespace-nowrap">{companyDetails.phone} | {companyDetails.email}</p>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'बँकेचे नाव (Bank Name)' : 'Bank Name'}</label>
-                <input
-                  type="text"
-                  value={bankForm.bankName}
-                  onChange={(e) => handleBankFieldChange('bankName', e.target.value)}
-                  placeholder="Rajarambapu Sahakari Bank Limited, Miraj"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-bold bg-slate-50 transition-colors"
-                />
+            {/* BANK DETAILS ROW */}
+            <div className="p-8 bg-emerald-50/30 border-b border-slate-100">
+              <div className="flex items-center gap-2 mb-4">
+                <Landmark className="w-4 h-4 text-emerald-600" />
+                <h4 className="text-[11px] font-black text-emerald-800 uppercase tracking-widest">{language === 'mr' ? 'बँक तपशील माहिती' : 'Official Bank Details'}</h4>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'खाते क्रमांक (Account Number)' : 'Account Number'}</label>
-                <input
-                  type="text"
-                  value={bankForm.accountNo}
-                  onChange={(e) => handleBankFieldChange('accountNo', e.target.value)}
-                  placeholder="035330268109560"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-mono font-bold tracking-wider bg-slate-50 transition-colors"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-1.5 space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Company Name (A/C Holder)</p>
+                  <p className="text-sm font-black text-slate-900">{companyDetails.bankDetails?.accountHolder || companyDetails.name}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Bank Name</p>
+                  <p className="text-sm font-bold text-slate-700">{companyDetails.bankDetails?.bankName}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">A/C Number</p>
+                  <p className="text-sm font-black text-slate-800 font-mono">{companyDetails.bankDetails?.accountNo}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">IFSC Code</p>
+                  <p className="text-sm font-black text-slate-800 font-mono uppercase">{companyDetails.bankDetails?.ifsc}</p>
+                </div>
               </div>
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">IFSC Code</label>
-                <input
-                  type="text"
-                  value={bankForm.ifsc}
-                  onChange={(e) => handleBankFieldChange('ifsc', e.target.value.toUpperCase())}
-                  placeholder="RRBP0000035"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-mono font-bold uppercase tracking-wider bg-slate-50 transition-colors"
-                />
+            {/* PERSONAL INFORMATION ROW */}
+            <div className="p-8">
+              <div className="flex items-center gap-2 mb-4">
+                <UserIcon className="w-4 h-4 text-red-600" />
+                <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest">{language === 'mr' ? 'वैयक्तिक माहिती' : 'Personal Information'}</h4>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">{language === 'mr' ? 'खातेधारक नाव (Account Holder Name)' : 'Account Holder Name'}</label>
-                <input
-                  type="text"
-                  value={bankForm.accountHolder}
-                  onChange={(e) => handleBankFieldChange('accountHolder', e.target.value)}
-                  placeholder="Blackworm Agritech Pvt Ltd"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-hidden font-semibold bg-slate-50 transition-colors"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Officer Name</p>
+                  <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 flex-wrap">
+                    <span>{currentUser?.fullName || currentUser?.name}</span>
+                    <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase">
+                      ({currentUser?.designation || currentUser?.role})
+                    </span>
+                  </p>
+                </div>
+                <div className="lg:col-span-2 space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Address</p>
+                  <p className="text-sm font-semibold text-slate-600 truncate" title={currentUser?.address}>{currentUser?.address || '-'}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Email ID</p>
+                  <p className="text-sm font-bold text-slate-700 truncate">{currentUser?.email || '-'}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Mobile Number</p>
+                  <p className="text-sm font-bold text-slate-800 font-mono">{currentUser?.phone}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Blood Group</p>
+                  <p className="text-sm font-black text-red-700">{currentUser?.bloodGroup || '-'}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Designation</p>
+                  <p className="text-sm font-bold text-red-600 uppercase tracking-tight">{currentUser?.designation || currentUser?.role}</p>
+                </div>
+                <div className="lg:col-span-2 space-y-0.5">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Working Territory</p>
+                  <p className="text-sm font-bold text-slate-700 truncate">{currentUser?.territory || '-'}</p>
+                </div>
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* SYSTEM ADMIN TOOLS */}
+      {isAdmin && !isEditing && (
+        <div className="mt-8 bg-slate-900 rounded-3xl p-6 text-white flex flex-wrap items-center justify-between gap-6 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Database className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black tracking-tight">{language === 'mr' ? 'सिस्टम बॅकअप व रिस्टोर' : 'System Backup & Recovery'}</h3>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Internal Data Management</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadBackup}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black transition-all active:scale-95 border border-white/10 cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              {language === 'mr' ? 'डेटा बॅकअप' : 'Download Backup'}
+            </button>
+            
+            {!showImportBox ? (
+              <button
+                onClick={() => setShowImportBox(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black transition-all active:scale-95 border border-white/10 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                {language === 'mr' ? 'डेटा रिस्टोर' : 'Restore Data'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowImportBox(false)}
+                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black transition-all active:scale-95 cursor-pointer"
+              >
+                {language === 'mr' ? 'बंद करा' : 'Close'}
+              </button>
+            )}
+          </div>
+
+          {showImportBox && (
+            <form onSubmit={handleImportSubmit} className="w-full mt-4 space-y-3 pt-4 border-t border-white/10 animate-in slide-in-from-top-4 duration-300">
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Paste JSON data here..."
+                className="w-full h-32 p-4 bg-white/5 border border-white/10 rounded-2xl font-mono text-[10px] text-white outline-hidden focus:border-red-500"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-sm shadow-lg shadow-red-600/20 transition-all active:scale-95 cursor-pointer"
+              >
+                Import Data Now
+              </button>
+            </form>
+          )}
         </div>
       )}
+
+      {/* Global Control: Language Toggle */}
+      {!isEditing && (
+        <div className="flex justify-center mt-10">
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'mr' : 'en')}
+            className="px-6 py-3 bg-white border border-slate-200 text-slate-800 rounded-2xl font-black text-sm transition-all active:scale-95 shadow-sm flex items-center gap-2 cursor-pointer hover:bg-slate-50"
+          >
+            <Globe className="w-5 h-5 text-blue-600" />
+            {language === 'en' ? 'मराठी मध्ये बदला (Switch to Marathi)' : 'Switch to English'}
+          </button>
+        </div>
+      )}
+      
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleLogoUpload}
+        className="hidden"
+      />
     </div>
   );
 };

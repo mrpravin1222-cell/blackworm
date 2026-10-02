@@ -567,12 +567,22 @@ export const DealerApplicationForm: React.FC = () => {
     }
   };
 
-  const isAdmin = currentUser ? (
-    currentUser.role === 'admin' || 
-    currentUser.name.toLowerCase().includes('pravin') || 
-    currentUser.name.toLowerCase().includes('shinde') || 
-    currentUser.id === 'USR-001'
-  ) : false;
+  const isAdmin = useMemo(() => {
+    if (!currentUser) return false;
+    const safeEmail = (currentUser.email || '').toLowerCase().trim();
+    const safeRole = (currentUser.role || '').toUpperCase();
+    const safeName = (currentUser.fullName || currentUser.name || '').toLowerCase();
+    
+    return (
+      safeRole === 'SUPER_ADMIN' ||
+      safeRole === 'ADMIN' ||
+      safeEmail === 'mr.pravin1222@gmail.com' ||
+      currentUser.id === 'USR-PRAVIN-SUPERADMIN' ||
+      currentUser.id === 'USR-001' ||
+      safeName.includes('shridhar') ||
+      safeName.includes('shreedhar')
+    );
+  }, [currentUser]);
 
   const visibleDealers = useMemo(() => {
     if (!currentUser) return [];
@@ -1347,7 +1357,7 @@ export const DealerApplicationForm: React.FC = () => {
                         <span className="shrink-0 font-mono font-black text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 uppercase tracking-tighter whitespace-nowrap">
                           Dealer {d.dealerCode ? d.dealerCode.split('-')[1] : '...'}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-red-700 transition-colors">
+                        <h4 className="text-[11px] sm:text-xs md:text-sm font-bold text-slate-900 truncate group-hover:text-red-700 transition-colors" title={d.firmName}>
                           {d.firmName}
                         </h4>
                       </div>
@@ -1363,10 +1373,25 @@ export const DealerApplicationForm: React.FC = () => {
                             {language === 'mr' ? 'मंजूर' : 'Approved'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
-                            <Clock className="w-2.5 h-2.5" />
-                            {language === 'mr' ? 'प्रलंबित' : 'Pending'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
+                              <Clock className="w-2.5 h-2.5" />
+                              {language === 'mr' ? 'प्रलंबित' : 'Pending'}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateDealerApplication(d.id, { status: 'approved' });
+                                }}
+                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                title="Click to Approve"
+                              >
+                                {language === 'mr' ? 'मंजूर करा' : 'Approve'}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

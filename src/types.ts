@@ -1,6 +1,8 @@
 export type Language = 'mr' | 'en';
 
 export type UserRole = 
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
   | 'admin' 
   | 'user'
   | 'asm' 
@@ -26,6 +28,9 @@ export interface User {
   territory: string;
   avatar?: string;
   allowedTabs?: NavTab[];
+  isActive?: boolean;
+  managedBy?: string;
+  updatedAt?: string;
 }
 
 export interface BankDetails {

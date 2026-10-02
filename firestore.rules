@@ -1,95 +1,143 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ---------------------------------------------------------
+    // GLOBAL HELPERS
+    // ---------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mr.pravin1222@gmail.com' ||
+        getUserData().role == 'SUPER_ADMIN'
+      );
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        getUserData().role == 'ADMIN'
+      );
+    }
 
-    // Default catch-all rule
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // ---------------------------------------------------------
+    // ENTITY VALIDATION HELPERS
+    // ---------------------------------------------------------
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'loginId', 'role']) &&
+             data.id is string &&
+             data.loginId is string &&
+             data.role in ['SUPER_ADMIN', 'ADMIN', 'USER', 'asm', 'field-officer', 'sales-officer', 'sr', 'sales-executive', 'dealer'] &&
+             (!('email' in data) || data.email is string) &&
+             (!('fullName' in data) || data.fullName is string) &&
+             (!('designation' in data) || data.designation is string) &&
+             (!('isActive' in data) || data.isActive is bool);
+    }
+
+    function isValidPriceListItem(data) {
+      return data.keys().hasAll(['id', 'nameMr']) &&
+             data.id is string &&
+             data.nameMr is string;
+    }
+
+    function isValidDealerApplication(data) {
+      return data.keys().hasAll(['id', 'firmName', 'status']) &&
+             data.id is string &&
+             data.firmName is string &&
+             data.status in ['pending', 'approved', 'rejected', 'under_review', 'cancelled'];
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION RULES
+    // ---------------------------------------------------------
+
+    // Default Deny
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
-    // Central App & Global State Data
-    match /app/{docId} {
-      allow read, write: if true;
-    }
-
-    match /globalData/{docId} {
-      allow read, write: if true;
-    }
-
-    // User Accounts & Authentication Profiles
+    // USERS COLLECTION
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      
+      allow create: if isAdmin() && isValidUser(incoming()) && incoming().id == userId;
+      
+      allow update: if (
+        // Admin can update anything except ID
+        (isAdmin() && isValidUser(incoming()) && incoming().id == userId && incoming().diff(existing()).affectedKeys().hasOnly([
+          'fullName', 'name', 'designation', 'role', 'loginId', 'password', 'phone', 'email', 'village', 
+          'address', 'bloodGroup', 'territory', 'isActive', 'managedBy', 'allowedTabs', 'updatedAt'
+        ])) ||
+        // User can update their own non-sensitive info
+        (request.auth.uid == userId && incoming().id == userId && incoming().role == existing().role &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'name', 'phone', 'email', 'village', 'address', 'bloodGroup', 'updatedAt']))
+      );
+      
+      allow delete: if isSuperAdmin();
     }
 
-    // Dealer Applications & Registrations
-    match /dealerApplications/{dealerId} {
-      allow read, write: if true;
-    }
-
-    // Sales Orders & Invoices
-    match /dealerOrders/{orderId} {
-      allow read, write: if true;
-    }
-
-    // Payment Collections & Receipts
-    match /dealerCollections/{collectionId} {
-      allow read, write: if true;
-    }
-
-    // Travel Sheets & Allowance Claims
-    match /travelSheets/{sheetId} {
-      allow read, write: if true;
-    }
-
-    match /travelExpenses/{expenseId} {
-      allow read, write: if true;
-    }
-
-    // Daily Activities, Farmer Meetings & Site Visits
-    match /dailyActivities/{activityId} {
-      allow read, write: if true;
-    }
-
-    // Farmers, Plots & Schedules
-    match /farmers/{farmerId} {
-      allow read, write: if true;
-    }
-
-    match /plots/{plotId} {
-      allow read, write: if true;
-    }
-
-    match /schedules/{scheduleId} {
-      allow read, write: if true;
-    }
-
-    // Target Sheets & Achievements
-    match /targetSheets/{targetId} {
-      allow read, write: if true;
-    }
-
-    // Product Price List
+    // PRICE LIST COLLECTION
     match /priceList/{itemId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // Promotional Schemes
-    match /schemes/{schemeId} {
-      allow read, write: if true;
+    // DEALER APPLICATIONS
+    match /dealerApplications/{appId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidDealerApplication(incoming());
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
-    // Company Master & Banking Details
-    match /companyDetails/{docId} {
-      allow read, write: if true;
+    // TARGETS
+    match /targets/{targetId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().executiveId == request.auth.uid);
+      allow write: if isAdmin();
     }
 
-    // System Settings & Logs
-    match /appSettings/{docId} {
-      allow read, write: if true;
+    // TRAVEL EXPENSES
+    match /travelExpenses/{expenseId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().employeeId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().employeeId == request.auth.uid;
+      allow update: if isAdmin() || (existing().employeeId == request.auth.uid && existing().status == 'pending');
     }
 
-    match /activityLogs/{logId} {
-      allow read, write: if true;
+    // DAILY ACTIVITIES
+    match /dailyActivities/{activityId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().employeeId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().employeeId == request.auth.uid;
+      allow update: if isAdmin() || (existing().employeeId == request.auth.uid);
+    }
+
+    // CONFIG
+    match /config/company {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
   }
 }

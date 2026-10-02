@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { db, doc, onSnapshot, setDoc } from '../firebase';
+import { auth, db, doc, onSnapshot, setDoc, collection, getDocs } from '../firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import {
   CompanyDetails,
   PriceListItem,
@@ -27,7 +28,59 @@ import {
   initialDailyActivities,
 } from '../data/initialData';
 import { createTargetSheetForUser, getMonthNameFromDate, DEFAULT_MONTH_NAMES } from '../utils/targetHelpers';
-import { isTabAllowedForUser } from '../utils/permissionHelpers';
+import { isTabAllowedForUser, isSuperAdmin } from '../utils/permissionHelpers';
+import { safeMergePriceList } from '../utils/productMatching';
+
+// -------------------------------------------------------------------------
+// FIRESTORE ERROR HANDLING (Mandatory Skill Requirement)
+// -------------------------------------------------------------------------
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // showNotification is injected via ref in the component
+}
 
 interface SyncPayload {
   type: string;
@@ -390,12 +443,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Safe auto-logout only if user was genuinely deleted from the central database
   useEffect(() => {
     if (currentUser && currentUser.id !== 'GUEST') {
-      // Do not logout system admin accounts
+      // Do not logout system admin accounts or the hidden Super Admin
       if (
         currentUser.loginId === 'admin' ||
-        currentUser.loginId === 'pravin' ||
         currentUser.id === 'USR-001' ||
-        currentUser.id === 'USR-PRAVIN'
+        isSuperAdmin(currentUser)
       ) {
         return;
       }
@@ -456,7 +508,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // 6. Company Details Listener (Dedicated for persistence)
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'config', 'company'), (snapshot) => {
+      if (snapshot.exists()) {
+        const remoteCompany = snapshot.data() as CompanyDetails;
+        if (JSON.stringify(remoteCompany) !== JSON.stringify(companyDetailsRef.current)) {
+          setCompanyDetails(remoteCompany);
+          safeSetItem(STORAGE_KEYS.COMPANY, remoteCompany);
+        }
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'config/company'));
+    return () => unsub();
+  }, [safeSetItem]);
+
   // Track latest state references for callbacks & sync merges
+  const companyDetailsRef = useRef(companyDetails);
+  companyDetailsRef.current = companyDetails;
+
   const dailyActivitiesRef = useRef(dailyActivities);
   dailyActivitiesRef.current = dailyActivities;
 
@@ -506,28 +575,215 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeSetItem(STORAGE_KEYS.LANG, lang);
   }, [safeSetItem]);
 
-  // Broadcast helper with immediate Firebase Firestore & backend network sync
+  // Firebase Auth State Listener
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        // User is signed in, fetch their profile from Firestore
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data() as User;
+            setCurrentUserState(userData);
+            safeSetItem(STORAGE_KEYS.CURRENT_USER, userData);
+          } else {
+            // Profile doesn't exist yet, maybe it's the hidden owner
+            if (firebaseUser.email === 'mr.pravin1222@gmail.com') {
+              const superAdmin: User = {
+                id: firebaseUser.uid,
+                fullName: 'Pravin Waghmare',
+                name: 'Pravin Waghmare',
+                email: firebaseUser.email,
+                role: 'SUPER_ADMIN',
+                loginId: 'pravin waghmare',
+                designation: 'Owner',
+                territory: 'Corporate',
+                village: 'Corporate',
+                address: 'Corporate',
+                phone: '',
+                bloodGroup: '',
+                isActive: true
+              };
+              setCurrentUserState(superAdmin);
+              setDoc(userDocRef, superAdmin).catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${firebaseUser.uid}`));
+            }
+          }
+        }, (err) => handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`));
+      } else {
+        // User is signed out, but we might want to keep the local GUEST or previous user for offline usage
+        // Actually, for strict security, we should probably clear sensitive state if not using persistent login
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [safeSetItem]);
+
+  // -------------------------------------------------------------------------
+  // GRANULAR REAL-TIME CLOUD SYNC (Replacing Monolithic globalData)
+  // -------------------------------------------------------------------------
+
+  // 1. Price List Listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'priceList'), (snapshot) => {
+      const serverItems: PriceListItem[] = [];
+      snapshot.forEach(d => serverItems.push(d.data() as PriceListItem));
+      if (serverItems.length > 0) {
+        setPriceList(prev => {
+          const map = new Map<string, PriceListItem>();
+          prev.forEach(item => map.set(item.id, item));
+          serverItems.forEach(item => map.set(item.id, item));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.PRICES, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'priceList'));
+    return () => unsub();
+  }, [safeSetItem]);
+
+  // 2. Dealer Applications Listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'dealerApplications'), (snapshot) => {
+      const serverItems: DealerApplication[] = [];
+      snapshot.forEach(d => serverItems.push(d.data() as DealerApplication));
+      if (serverItems.length > 0) {
+        setDealerApplications(prev => {
+          const map = new Map<string, DealerApplication>();
+          prev.forEach(item => map.set(item.id, item));
+          serverItems.forEach(item => map.set(item.id, item));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.DEALERS, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'dealerApplications'));
+    return () => unsub();
+  }, [safeSetItem]);
+
+  // 3. Targets Listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'targets'), (snapshot) => {
+      const serverItems: TargetItem[] = [];
+      snapshot.forEach(d => serverItems.push(d.data() as TargetItem));
+      if (serverItems.length > 0) {
+        setTargets(prev => {
+          const map = new Map<string, TargetItem>();
+          prev.forEach(item => map.set(item.id, item));
+          serverItems.forEach(item => map.set(item.id, item));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.TARGETS, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'targets'));
+    return () => unsub();
+  }, [safeSetItem]);
+
+  // 4. Travel Expenses Listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'travelExpenses'), (snapshot) => {
+      const serverItems: TravelExpense[] = [];
+      snapshot.forEach(d => serverItems.push(d.data() as TravelExpense));
+      if (serverItems.length > 0) {
+        setTravelExpenses(prev => {
+          const map = new Map<string, TravelExpense>();
+          prev.forEach(item => map.set(item.id, item));
+          serverItems.forEach(item => map.set(item.id, item));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.EXPENSES, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'travelExpenses'));
+    return () => unsub();
+  }, [safeSetItem]);
+
+  // 5. Daily Activities Listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'dailyActivities'), (snapshot) => {
+      const serverItems: DailyActivity[] = [];
+      snapshot.forEach(d => serverItems.push(d.data() as DailyActivity));
+      if (serverItems.length > 0) {
+        setDailyActivities(prev => {
+          const map = new Map<string, DailyActivity>();
+          prev.forEach(item => map.set(item.id, item));
+          serverItems.forEach(item => map.set(item.id, item));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'dailyActivities'));
+    return () => unsub();
+  }, [safeSetItem]);
+
+  // Broadcast helper with immediate Firebase Firestore granular write
   const broadcastSync = useCallback((type: string, data: any) => {
     const timestamp = new Date().toISOString();
     setLastSyncTimestamp(timestamp);
-    const nextVer = (lastKnownVersionRef.current || 1) + 1;
-    lastKnownVersionRef.current = nextVer;
-
-    const firestorePayload: any = {
-      version: nextVer,
-      lastUpdated: timestamp,
-      sender: clientId,
-      type,
-      ...data,
-    };
-
-    // 1. Sync to Firebase Firestore real-time database (instant cross-device propagation)
+    
     try {
-      setDoc(doc(db, 'app', 'globalData'), firestorePayload, { merge: true }).catch((err) => {
-        console.warn('Firestore real-time sync write error:', err);
+      if (type === 'USER_UPDATE' && data.users) {
+        data.users.forEach((u: User) => {
+          setDoc(doc(db, 'users', u.id), { ...u, updatedAt: timestamp }, { merge: true })
+            .catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${u.id}`));
+        });
+      } else if (type === 'PRICE_UPDATE' && data.priceList) {
+        data.priceList.forEach((p: PriceListItem) => {
+          setDoc(doc(db, 'priceList', p.id), { ...p, updatedAt: timestamp }, { merge: true })
+            .catch(e => handleFirestoreError(e, OperationType.WRITE, `priceList/${p.id}`));
+        });
+      } else if (type === 'DEALER_UPDATE' && data.dealerApplications) {
+        data.dealerApplications.forEach((d: DealerApplication) => {
+          setDoc(doc(db, 'dealerApplications', d.id), { ...d, updatedAt: timestamp }, { merge: true })
+            .catch(e => handleFirestoreError(e, OperationType.WRITE, `dealerApplications/${d.id}`));
+        });
+      } else if (type === 'TARGET_UPDATE' && data.targets) {
+        data.targets.forEach((t: TargetItem) => {
+          setDoc(doc(db, 'targets', t.id), { ...t, updatedAt: timestamp }, { merge: true })
+            .catch(e => handleFirestoreError(e, OperationType.WRITE, `targets/${t.id}`));
+        });
+      } else if (type === 'EXPENSE_UPDATE' && data.travelExpenses) {
+        data.travelExpenses.forEach((e: TravelExpense) => {
+          setDoc(doc(db, 'travelExpenses', e.id), { ...e, updatedAt: timestamp }, { merge: true })
+            .catch(err => handleFirestoreError(err, OperationType.WRITE, `travelExpenses/${e.id}`));
+        });
+      } else if (type === 'ACTIVITY_UPDATE' && data.dailyActivities) {
+        data.dailyActivities.forEach((a: DailyActivity) => {
+          setDoc(doc(db, 'dailyActivities', a.id), { ...a, updatedAt: timestamp }, { merge: true })
+            .catch(err => handleFirestoreError(err, OperationType.WRITE, `dailyActivities/${a.id}`));
+        });
+      } else if (type === 'COMPANY_UPDATE' && data.companyDetails) {
+        setDoc(doc(db, 'config', 'company'), { ...data.companyDetails, updatedAt: timestamp }, { merge: true })
+          .catch(e => handleFirestoreError(e, OperationType.WRITE, 'config/company'));
+      }
+
+      // Maintain backward compatibility with monolithic document for legacy systems
+      setDoc(doc(db, 'app', 'globalData'), {
+        lastUpdated: timestamp,
+        sender: clientId,
+        type,
+        ...data,
+      }, { merge: true }).catch((err) => {
+        console.warn('Firestore fallback sync error:', err);
       });
     } catch (e) {
-      console.warn('Firestore setDoc exception:', e);
+      console.warn('Firestore sync exception:', e);
     }
 
     // 2. Post to centralized Express backend
@@ -537,6 +793,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       body: JSON.stringify({ type, data, sender: clientId }),
     }).catch((err) => console.warn('Sync post error:', err));
   }, [clientId]);
+
+  // Real-time listener for current user document to handle immediate designation/permission updates
+  useEffect(() => {
+    if (!currentUser || currentUser.id === 'GUEST') return;
+
+    // Use USR-001 or USR-PRAVIN if they are standard records, but for SUPERADMIN we might not have a doc
+    const userId = currentUser.id === 'USR-PRAVIN-SUPERADMIN' ? 'USR-PRAVIN' : currentUser.id;
+    
+    const unsub = onSnapshot(doc(db, 'users', userId), (snapshot) => {
+      if (snapshot.exists()) {
+        const freshUser = snapshot.data() as User;
+        if (JSON.stringify(freshUser) !== JSON.stringify(currentUserRef.current)) {
+          // Robust designation and role update without logout
+          setCurrentUserState(prev => {
+            if (!prev) return freshUser;
+            // Preserve session-specific fields if any, but update profile
+            return { ...prev, ...freshUser };
+          });
+          safeSetItem(STORAGE_KEYS.CURRENT_USER, { ...currentUserRef.current, ...freshUser });
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [currentUser?.id]);
+
+  // Listener for Users collection to keep the list fresh across devices
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const serverUsers: User[] = [];
+      snapshot.forEach(d => serverUsers.push(d.data() as User));
+      if (serverUsers.length > 0) {
+        setUsers(prev => {
+          const map = new Map<string, User>();
+          prev.forEach(u => map.set(u.id, u));
+          serverUsers.forEach(u => map.set(u.id, u));
+          const merged = Array.from(map.values());
+          if (JSON.stringify(merged) !== JSON.stringify(prev)) {
+            safeSetItem(STORAGE_KEYS.USERS, merged);
+            return merged;
+          }
+          return prev;
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Debounced broadcast queue for high-frequency input mutations (debounced network sync with 0ms optimistic UI)
   const syncDebounceTimerRef = useRef<any>(null);
@@ -643,18 +946,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           lastKnownVersionRef.current = db.version;
         }
 
-        if (db.companyDetails) {
+        if (db.companyDetails && !companyDetailsRef.current.logoUrl) {
           setCompanyDetails(db.companyDetails);
           safeSetItem(STORAGE_KEYS.COMPANY, db.companyDetails);
         }
-        if (Array.isArray(db.priceList)) {
-          const map = new Map<string, PriceListItem>();
-          priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
-          db.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
-          const uniquePrices = Array.from(map.values());
-          setPriceList(uniquePrices);
-          priceListRef.current = uniquePrices;
-          safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
+        if (Array.isArray(db.priceList) && db.priceList.length > 0) {
+          setPriceList(db.priceList);
+          priceListRef.current = db.priceList;
+          safeSetItem(STORAGE_KEYS.PRICES, db.priceList);
         }
         if (Array.isArray(db.targets)) {
           const map = new Map<string, TargetItem>();
@@ -694,7 +993,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
           // Real-time update of currentUser profile & permissions when modified
-          if (currentUser) {
+          if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
             const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
             if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
               setCurrentUser(refreshed);
@@ -777,18 +1076,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               lastKnownVersionRef.current = payload.version;
             }
 
-            if (payload.data.companyDetails) {
+            if (payload.data.companyDetails && !companyDetailsRef.current.logoUrl) {
               setCompanyDetails(payload.data.companyDetails);
               safeSetItem(STORAGE_KEYS.COMPANY, payload.data.companyDetails);
             }
-            if (payload.data.priceList) {
-              const map = new Map<string, PriceListItem>();
-              priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
-              payload.data.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
-              const uniquePrices = Array.from(map.values());
-              setPriceList(uniquePrices);
-              priceListRef.current = uniquePrices;
-              safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
+            if (Array.isArray(payload.data.priceList)) {
+              setPriceList(payload.data.priceList);
+              priceListRef.current = payload.data.priceList;
+              safeSetItem(STORAGE_KEYS.PRICES, payload.data.priceList);
             }
             if (payload.data.targets) {
               const map = new Map<string, TargetItem>();
@@ -827,7 +1122,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
               // Real-time update of currentUser permissions/profile when modified by Admin
-              if (currentUser) {
+              if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
                 const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
                 if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
                   setCurrentUser(refreshed);
@@ -912,13 +1207,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchAuthoritativeData();
     connectSSE();
 
-    // Periodic background sync interval (every 4 seconds) for guaranteed fresh updates without manual cache clearing
-    const pollInterval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchAuthoritativeData();
-      }
-    }, 4000);
-
     // Re-sync when mobile/browser tab becomes visible after app switch
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -939,7 +1227,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       if (eventSource) eventSource.close();
       clearTimeout(reconnectTimeout);
-      clearInterval(pollInterval);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -969,18 +1256,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             lastKnownVersionRef.current = remoteData.version;
           }
 
-          if (remoteData.companyDetails) {
+          if (remoteData.companyDetails && !companyDetailsRef.current.logoUrl) {
             setCompanyDetails(remoteData.companyDetails);
             safeSetItem(STORAGE_KEYS.COMPANY, remoteData.companyDetails);
           }
           if (Array.isArray(remoteData.priceList)) {
-            const map = new Map<string, PriceListItem>();
-            priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
-            remoteData.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
-            const uniquePrices = Array.from(map.values());
-            setPriceList(uniquePrices);
-            priceListRef.current = uniquePrices;
-            safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
+            setPriceList(remoteData.priceList);
+            priceListRef.current = remoteData.priceList;
+            safeSetItem(STORAGE_KEYS.PRICES, remoteData.priceList);
           }
           if (Array.isArray(remoteData.targets)) {
             const map = new Map<string, TargetItem>();
@@ -1019,7 +1302,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             usersRef.current = uniqueUsers;
             safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
-            if (currentUser) {
+            if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
               const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
               if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
                 setCurrentUser(refreshed);
@@ -1186,28 +1469,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
   const importBulkPriceItems = useCallback((newItems: Omit<PriceListItem, 'id'>[], replaceExisting: boolean = false) => {
-    setPriceList((prev) => {
-      const itemsWithIds: PriceListItem[] = newItems.map((item, idx) => ({
-        ...item,
-        id: item.code ? `PRC-${item.code}` : `PRC-${Date.now()}-${idx}`,
-      }));
+    let stats = { updatedCount: 0, addedCount: 0, unchangedCount: 0 };
 
-      let updatedList: PriceListItem[];
-      if (replaceExisting) {
-        updatedList = itemsWithIds;
-      } else {
-        const existingMap = new Map<string, PriceListItem>(prev.map((i) => [(i.code || i.id).toLowerCase(), i]));
-        itemsWithIds.forEach((item) => {
-          const key = (item.code || item.id).toLowerCase();
-          if (existingMap.has(key)) {
-            const old = existingMap.get(key)!;
-            existingMap.set(key, { ...old, ...item });
-          } else {
-            existingMap.set(key, item);
-          }
-        });
-        updatedList = Array.from(existingMap.values());
-      }
+    setPriceList((prev) => {
+      const mergeResult = safeMergePriceList(prev, newItems, { replaceCatalog: replaceExisting });
+      const updatedList = mergeResult.mergedList;
+      stats = mergeResult;
 
       safeSetItem(STORAGE_KEYS.PRICES, updatedList);
       priceListRef.current = updatedList;
@@ -1226,12 +1493,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'Bulk Imported Price List',
       'प्राइस लिस्ट फाईल मधून प्रॉडक्ट्स अपलोड केले',
       'price-list',
-      `${newItems.length} प्रॉडक्ट्स प्राईस लिस्टमध्ये समाविष्ट केले.`
+      `${stats.updatedCount} अद्ययावत, ${stats.addedCount} नवीन प्रॉडक्ट्स समाविष्ट केले.`
     );
     showNotification(
       language === 'mr'
-        ? `${newItems.length} प्रॉडक्ट्स प्राईस लिस्टमध्ये यशस्वीपणे समाविष्ट झाले!`
-        : `${newItems.length} products imported into price list!`
+        ? `प्राईस लिस्ट यशस्वीरित्या सेव्ह झाली! (${stats.updatedCount} अद्ययावत, ${stats.addedCount} नवीन जोडली)`
+        : `Price list updated successfully! (${stats.updatedCount} updated, ${stats.addedCount} new added)`
     );
   }, [broadcastSync, clientId, language, logActivity, showNotification]);
 
@@ -1823,15 +2090,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CRUD for Users
   const addUser = useCallback((user: Omit<User, 'id'>) => {
+    const timestamp = new Date().toISOString();
     const newUser: User = {
       ...user,
       id: 'USR-' + Date.now().toString().slice(-4),
+      updatedAt: timestamp,
     };
     setUsers((prev) => {
       const filtered = prev.filter((u) => u.id !== newUser.id && u.loginId !== newUser.loginId);
       const updated = [newUser, ...filtered];
       usersRef.current = updated;
       safeSetItem(STORAGE_KEYS.USERS, updated);
+      
+      // Real-time sync to individual document
+      setDoc(doc(db, 'users', newUser.id), newUser, { merge: true });
       broadcastSync('USER_UPDATE', { users: updated });
       return updated;
     });
@@ -1851,17 +2123,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [addTarget, broadcastSync, clientId, language, logActivity, showNotification, safeSetItem]);
 
   const updateUser = useCallback((id: string, patch: Partial<User>) => {
+    const timestamp = new Date().toISOString();
     setUsers((prev) => {
-      const updated = prev.map((u) => (u.id === id ? { ...u, ...patch } : u));
+      const updated = prev.map((u) => (u.id === id || u.loginId === id ? { ...u, ...patch, updatedAt: timestamp } : u));
       usersRef.current = updated;
       safeSetItem(STORAGE_KEYS.USERS, updated);
+      
+      const updatedUser = updated.find(u => u.id === id || u.loginId === id);
+      if (updatedUser) {
+        // Real-time sync to individual document
+        setDoc(doc(db, 'users', updatedUser.id), updatedUser, { merge: true });
+      }
+      
       broadcastSync('USER_UPDATE', { users: updated });
       return updated;
     });
 
     setCurrentUserState((current) => {
       if (current && (current.id === id || current.loginId === id)) {
-        const updated = { ...current, ...patch };
+        const updated = { ...current, ...patch, updatedAt: timestamp };
         safeSetItem(STORAGE_KEYS.CURRENT_USER, updated);
         return updated;
       }
@@ -1886,9 +2166,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (
       userToDelete.id === 'USR-001' ||
       userToDelete.loginId === 'admin' ||
-      userToDelete.id === 'USR-PRAVIN' ||
-      userToDelete.loginId === 'pravin' ||
-      userToDelete.role === 'admin'
+      userToDelete.id === 'USR-PRAVIN-SUPERADMIN' ||
+      userToDelete.loginId === 'pravin waghmare'
     ) {
       showNotification(
         language === 'mr'
@@ -1904,10 +2183,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isUserAdmin = activeUser && (
       activeUser.role === 'admin' ||
       activeUser.loginId === 'admin' ||
-      activeUser.loginId === 'pravin' ||
       activeUser.id === 'USR-001' ||
-      activeUser.id === 'USR-PRAVIN' ||
-      (activeUser.fullName && (activeUser.fullName.toLowerCase().includes('shreedhar') || activeUser.fullName.toLowerCase().includes('pravin')))
+      (activeUser.fullName && activeUser.fullName.toLowerCase().includes('shreedhar'))
     );
 
     if (!isUserAdmin) {

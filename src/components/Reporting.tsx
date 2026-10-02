@@ -9,6 +9,7 @@ import {
   MonthlyTravelSheetData,
 } from '../utils/travelSheetHelpers';
 import { User, DealerCollectionRecord } from '../types';
+import { isShreedharUser, sortUsersByRank } from '../utils/permissionHelpers';
 import {
   BarChart3,
   Download,
@@ -74,8 +75,7 @@ export const Reporting: React.FC = React.memo(() => {
 
   const isAdmin = currentUser
     ? currentUser.role === 'admin' ||
-      currentUser.loginId === 'admin' ||
-      currentUser.loginId === 'pravin waghmare'
+      currentUser.loginId === 'admin'
     : false;
 
   // View Mode: 'all_officers_daily' (Master Daily Track Report)
@@ -110,6 +110,9 @@ export const Reporting: React.FC = React.memo(() => {
   // Active Selected Officer
   const activeOfficer = useMemo(() => {
     if (!isAdmin && currentUser) return currentUser;
+    if (currentUser && (currentUser.id === selectedOfficerId || currentUser.loginId === selectedOfficerId)) {
+      return currentUser;
+    }
     return users.find((u) => u.id === selectedOfficerId) || currentUser || users[0];
   }, [users, selectedOfficerId, currentUser, isAdmin]);
 
@@ -441,7 +444,8 @@ export const Reporting: React.FC = React.memo(() => {
   };
 
   const reportUsers = useMemo(() => {
-    return users.filter((u) => !isShreedharShindeUser(u));
+    const filtered = users.filter((u) => !isShreedharUser(u));
+    return sortUsersByRank(filtered);
   }, [users]);
 
   // Master Data for ALL OFFICERS on Selected Date
@@ -671,21 +675,6 @@ export const Reporting: React.FC = React.memo(() => {
               </span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </button>
-
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>{language === 'mr' ? 'एक्सेल/CSV' : 'Export CSV'}</span>
-            </button>
-
-            <PrintActions
-              elementId="all-officers-report"
-              title="All Officer Daily Track Report"
-              landscape={true}
-            />
           </div>
         </div>
 
@@ -712,11 +701,11 @@ export const Reporting: React.FC = React.memo(() => {
             <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
               <Compass className="w-5 h-5 text-red-600 shrink-0" />
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  {language === 'mr' ? 'एकूण अधिकारी ऑन-फील्ड' : 'Active Field Officers'}
+                <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                  {language === 'mr' ? 'एकूण ऑन-फील्ड ऑफिसर' : 'Total Off.'}
                 </span>
-                <span className="text-sm font-black text-slate-900 font-mono">
-                  {masterDailyKPIs.activeOfficersCount} / {masterDailyKPIs.totalOfficers} {language === 'mr' ? 'अधिकारी' : 'Officers'}
+                <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
+                  {masterDailyKPIs.activeOfficersCount} / {masterDailyKPIs.totalOfficers}
                 </span>
               </div>
             </div>
@@ -898,7 +887,7 @@ export const Reporting: React.FC = React.memo(() => {
                 <tfoot className="bg-slate-900 text-white font-black text-xs border-t-2 border-slate-900">
                   <tr>
                     <td colSpan={5} className="py-3 px-4 border-r border-slate-800 uppercase tracking-wider text-amber-400">
-                      मास्टर एकूण बेरीज ({selectedDailyDate})
+                      Master Total Summary ({selectedDailyDate})
                     </td>
                     <td className="py-3 px-3 border-r border-slate-800 text-right font-mono text-amber-300">
                       {masterDailyKPIs.totalKmToday > 0 ? `${masterDailyKPIs.totalKmToday} km` : '0 km'}
@@ -910,7 +899,7 @@ export const Reporting: React.FC = React.memo(() => {
                       {masterDailyKPIs.totalExpenseToday > 0 ? `₹${masterDailyKPIs.totalExpenseToday.toLocaleString('en-IN')}` : '-'}
                     </td>
                     <td colSpan={2} className="py-3 px-3 border-r border-slate-800 text-right text-slate-300 uppercase text-[10px]">
-                      एकूण टार्गेट बॅकलॉग (Shortfall):
+                      Target Backlog:
                     </td>
                     <td className="py-3 px-3 text-right font-mono text-red-400 text-sm">
                       {masterDailyKPIs.totalBacklogOverall > 0 ? `₹${masterDailyKPIs.totalBacklogOverall.toLocaleString('en-IN')}` : '₹0'}
@@ -933,8 +922,11 @@ export const Reporting: React.FC = React.memo(() => {
                 <UserIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">
-                  {activeOfficer?.fullName || activeOfficer?.name}
+                <h3 className="text-base font-bold text-white flex items-center gap-2 flex-wrap">
+                  <span>{activeOfficer?.fullName || activeOfficer?.name}</span>
+                  <span className="text-xs font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 uppercase">
+                    ({activeOfficer?.designation || activeOfficer?.role || 'Sales Officer'})
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-300 font-medium">
                   {activeOfficer?.designation || activeOfficer?.role || 'Sales Officer'} | {activeOfficer?.territory || activeOfficer?.village || 'Territory'}

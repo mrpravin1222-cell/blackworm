@@ -1,54 +1,138 @@
 {
   "entities": {
-    "DealerApplication": {
-      "title": "Dealer Application",
-      "description": "Information about a dealership application",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "center": { "type": "string" },
-        "shopOpeningDate": { "type": "string" },
-        "dealerCode": { "type": "string" },
-        "firmName": { "type": "string" },
-        "proprietorName": { "type": "string" },
-        "contactNumber": { "type": "string" },
-        "email": { "type": "string" },
-        "aadhaarNo": { "type": "string" },
-        "district": { "type": "string" },
-        "panNo": { "type": "string" },
-        "dateOfBirth": { "type": "string" },
-        "gstNo": { "type": "string" },
-        "pinCode": { "type": "string" },
-        "village": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "cancelled"] },
-        "applicationDate": { "type": "string" },
-        "mobile": { "type": "string" },
-        "applicantPhotoUrl": { "type": "string" }
-      },
-      "required": ["id", "firmName"]
-    },
     "User": {
-      "title": "App User",
-      "description": "Authorized system user",
+      "title": "User",
+      "description": "System user profile and permissions",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "role": { "type": "string" },
         "loginId": { "type": "string" },
         "password": { "type": "string" },
-        "fullName": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "staff"] }
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "village": { "type": "string" },
+        "address": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "territory": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "managedBy": { "type": "string" },
+        "allowedTabs": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "loginId", "password"]
+      "required": ["id", "loginId", "role"]
+    },
+    "PriceListItem": {
+      "title": "Price List Item",
+      "description": "Product pricing information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "nameMr": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "category": { "type": "string" },
+        "packing": { "type": "string" },
+        "mrp": { "type": "number" },
+        "dealerPrice": { "type": "number" },
+        "gstRate": { "type": "number" },
+        "hsnCode": { "type": "string" },
+        "inStock": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "nameMr"]
+    },
+    "DealerApplication": {
+      "title": "Dealer Application",
+      "description": "Registration form for new dealers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "firmName": { "type": "string" },
+        "proprietorName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "under_review", "cancelled"] },
+        "submittedBy": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "firmName", "status"]
+    },
+    "TargetItem": {
+      "title": "Target Item",
+      "description": "Sales and collection targets for executives",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "executiveId": { "type": "string" },
+        "executiveName": { "type": "string" },
+        "territory": { "type": "string" },
+        "financialYear": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "achievedAmount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "executiveId", "financialYear"]
+    },
+    "TravelExpense": {
+      "title": "Travel Expense",
+      "description": "Employee travel and claim records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "travelDate": { "type": "string", "format": "date" },
+        "totalClaimAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "paid"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employeeId", "status"]
+    },
+    "DailyActivity": {
+      "title": "Daily Activity",
+      "description": "Field staff daily work reports",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "activityType": { "type": "string" },
+        "village": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employeeId", "date"]
     }
   },
   "firestore": {
-    "/dealerApplications/{appId}": {
-      "schema": "DealerApplication",
-      "description": "Dealership records accessible to authorized users"
-    },
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles and credentials"
+      "description": "Individual user records"
+    },
+    "/priceList/{itemId}": {
+      "schema": "PriceListItem",
+      "description": "Product catalog items"
+    },
+    "/dealerApplications/{appId}": {
+      "schema": "DealerApplication",
+      "description": "Dealer registration forms"
+    },
+    "/targets/{targetId}": {
+      "schema": "TargetItem",
+      "description": "Sales targets"
+    },
+    "/travelExpenses/{expenseId}": {
+      "schema": "TravelExpense",
+      "description": "Travel expense claims"
+    },
+    "/dailyActivities/{activityId}": {
+      "schema": "DailyActivity",
+      "description": "Field activity logs"
+    },
+    "/config/company": {
+      "schema": "object",
+      "description": "Global company settings"
     }
   }
 }

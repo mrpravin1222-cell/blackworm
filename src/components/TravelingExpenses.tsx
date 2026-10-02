@@ -33,10 +33,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
     currentUser.loginId === 'admin' ||
-    currentUser.loginId === 'pravin' ||
-    currentUser.loginId === 'pravin waghmare' ||
-    currentUser.id === 'USR-001' ||
-    currentUser.id === 'USR-PRAVIN'
+    currentUser.id === 'USR-001'
   ) : false;
   const monthInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -124,18 +121,33 @@ export const TravelingExpenses: React.FC = React.memo(() => {
         // fallback
       }
     }
+    const isCurrentUserActive = currentUser && (
+      activeUser.id === currentUser.id ||
+      activeUser.loginId === currentUser.loginId ||
+      activeUser.fullName === currentUser.fullName ||
+      activeUser.name === currentUser.name
+    );
+    const effectiveDesig = isCurrentUserActive ? currentUser.designation : (activeUser.designation || 'Sales Officer');
+
     return generateMonthlyTravelSheet(
       activeUser.fullName || activeUser.name || 'Officer',
-      activeUser.designation || 'Sales Officer',
+      effectiveDesig,
       currentMonth
     );
   });
+
+  const isCurrentUserActiveInitial = currentUser && (
+    activeUser.id === currentUser.id ||
+    activeUser.loginId === currentUser.loginId ||
+    activeUser.fullName === currentUser.fullName ||
+    activeUser.name === currentUser.name
+  );
 
   const [officerName, setOfficerName] = useState<string>(
     activeUser.fullName || activeUser.name || 'Officer'
   );
   const [designation, setDesignation] = useState<string>(
-    activeUser.designation || 'Sales Officer'
+    isCurrentUserActiveInitial ? currentUser.designation : (activeUser.designation || 'Sales Officer')
   );
   
   // Calculate dynamic initial date string (e.g., "8/1/2026")
@@ -165,10 +177,18 @@ export const TravelingExpenses: React.FC = React.memo(() => {
       }
     }
 
+    const isTargetCurrentUser = currentUser && targetUser && (
+      targetUser.id === currentUser.id ||
+      targetUser.loginId === currentUser.loginId ||
+      targetUser.fullName === currentUser.fullName ||
+      targetUser.name === currentUser.name
+    );
+    const effectiveTargetDesig = isTargetCurrentUser ? currentUser.designation : (targetUser?.designation || 'Sales Officer');
+
     if (!loadedSheet) {
       loadedSheet = generateMonthlyTravelSheet(
         targetUser?.fullName || targetUser?.name || 'Officer',
-        targetUser?.designation || 'Sales Officer',
+        effectiveTargetDesig,
         monthYear
       );
     }
@@ -184,7 +204,7 @@ export const TravelingExpenses: React.FC = React.memo(() => {
       loadedSheet.officerName || targetUser?.fullName || targetUser?.name || 'Officer'
     );
     setDesignation(
-      loadedSheet.designation || targetUser?.designation || 'Sales Officer'
+      isTargetCurrentUser ? currentUser.designation : (loadedSheet.designation || targetUser?.designation || 'Sales Officer')
     );
     setSheetDate(dynamicSheetDate);
   };

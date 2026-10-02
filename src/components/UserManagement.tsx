@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BlackwormLogo } from './BlackwormLogo';
+import { BLACKWORM_LOGO_BASE64, BLACKWORM_USER_UPLOADED_LOGO_BASE64 } from '../assets/logoBase64';
 import { User, UserRole, NavTab } from '../types';
-import { ALL_NAV_MODULES, STANDARD_USER_ALLOWED_TABS } from '../utils/permissionHelpers';
+import { 
+  ALL_NAV_MODULES, 
+  STANDARD_USER_ALLOWED_TABS, 
+  isShreedharUser, 
+  isSuperAdmin,
+  isAdmin as isAnyAdmin,
+  sortUsersByRank 
+} from '../utils/permissionHelpers';
 import { initialUsers } from '../data/initialData';
 import { generateShareMessage, getCleanAppLink, shareViaWhatsApp } from '../utils/shareHelpers';
 import { 
@@ -19,6 +27,7 @@ import {
   Shield,
   Trash2,
   Edit2,
+  Save,
   LogOut,
   ChevronRight,
   Target,
@@ -30,6 +39,11 @@ import {
   Copy,
   ExternalLink,
   Check,
+  Building,
+  Building2,
+  Landmark,
+  Fingerprint,
+  LockKeyhole,
 } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
@@ -49,13 +63,66 @@ export const UserManagement: React.FC = () => {
     if (!currentUser || currentUser.id === 'GUEST' || !currentUser.loginId) {
       return 'login';
     }
-    const safeName = (currentUser.fullName || currentUser.name || '').toLowerCase();
-    const isUsrAdmin = currentUser.role === 'admin' || currentUser.loginId === 'admin' || currentUser.id === 'USR-001' || safeName.includes('pravin') || safeName.includes('shreedhar') || safeName.includes('shridhar') || safeName.includes('shinde');
+    const isUsrAdmin = isShreedharUser(currentUser);
     return isUsrAdmin ? 'list' : 'profile';
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedUserForView, setSelectedUserForView] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    village: '',
+    address: '',
+    bloodGroup: '',
+    password: '',
+    territory: '',
+    companyName: '',
+    tagline: '',
+    cin: '',
+    gstNo: '',
+    companyAddress: '',
+    companyPhone: '',
+    companyEmail: '',
+    bankName: '',
+    accountNo: '',
+    ifsc: '',
+    accountHolder: '',
+  });
+
+  const {
+    companyDetails,
+    updateCompanyDetails,
+  } = useApp();
+
+  React.useEffect(() => {
+    const user = selectedUserForView || currentUser;
+    if (user) {
+      setProfileForm({
+        fullName: user.fullName || user.name || '',
+        phone: user.phone || '',
+        email: user.email || '',
+        village: user.village || '',
+        address: user.address || '',
+        bloodGroup: user.bloodGroup || '',
+        password: user.password || '',
+        territory: user.territory || '',
+        companyName: companyDetails.name || '',
+        tagline: companyDetails.tagline || '',
+        cin: companyDetails.cin || '',
+        gstNo: companyDetails.gstNo || '',
+        companyAddress: companyDetails.address || '',
+        companyPhone: companyDetails.phone || '',
+        companyEmail: companyDetails.email || '',
+        bankName: companyDetails.bankDetails?.bankName || '',
+        accountNo: companyDetails.bankDetails?.accountNo || '',
+        ifsc: companyDetails.bankDetails?.ifsc || '',
+        accountHolder: companyDetails.bankDetails?.accountHolder || '',
+      });
+    }
+  }, [currentUser, selectedUserForView, companyDetails]);
 
   React.useEffect(() => {
     if (!currentUser || currentUser.id === 'GUEST' || !currentUser.loginId) {
@@ -81,20 +148,9 @@ export const UserManagement: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
   
-  const isAdmin = currentUser && (
-    currentUser.role === 'admin' ||
-    currentUser.loginId === 'admin' || 
-    currentUser.loginId === 'pravin' || 
-    currentUser.loginId === 'pravin waghmare' ||
-    currentUser.id === 'USR-001' ||
-    currentUser.id === 'USR-PRAVIN'
-  );
-
-  const isPravin = currentUser && (
-    currentUser.loginId === 'pravin' ||
-    currentUser.loginId === 'pravin waghmare' ||
-    currentUser.id === 'USR-PRAVIN'
-  );
+  const isAdmin = isAnyAdmin(currentUser);
+  const isPravin = isSuperAdmin(currentUser);
+  const isShreedhar = isShreedharUser(currentUser);
   
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -261,93 +317,94 @@ export const UserManagement: React.FC = () => {
     
     // Simulate brief delay for better UX feedback
     setTimeout(() => {
-      // 1. Permanent Secret Super Admin Master Authentication (Never displayed in UI, permanently locked)
-      if (
-        (cleanId === 'pravin waghmare' && cleanPass === 'Blackworm') ||
-        (cleanId === 'pravin' && (cleanPass === 'Blackworm' || cleanPass === '123'))
-      ) {
-        const superAdminUser: User = {
-          id: 'USR-PRAVIN',
-          fullName: 'Pravin Kumar Waghmare',
-          name: 'Pravin Kumar Waghmare',
-          designation: 'Super Admin',
-          village: 'Tasgaon',
-          address: 'Sangli',
-          phone: '+91 9822012345',
-          email: 'mr.pravin1222@gmail.com',
-          bloodGroup: 'B+',
-          loginId: 'pravin waghmare',
-          password: 'Blackworm',
-          role: 'admin',
-          territory: 'Head Office (Sangli)',
-          allowedTabs: ALL_NAV_MODULES.map((m) => m.id),
-        };
-        setIsLoggingIn(false);
-        setCurrentUser(superAdminUser);
-        setLoginId('');
-        setPassword('');
-        setActiveTab('dashboard');
-        setView('list');
-        showNotification(
-          language === 'mr' ? 'सुपर ऍडमिन म्हणून यशस्वीरित्या लॉगिन झाले.' : 'Logged in successfully as Super Admin!',
-          'success'
+        // 1. Permanent Secret Super Admin Master Authentication
+        if (cleanId === 'pravin waghmare' && cleanPass === 'Blackworm') {
+          const superAdminUser: User = {
+            id: 'USR-PRAVIN-SUPERADMIN',
+            fullName: 'Pravin Kumar Waghmare',
+            name: 'Pravin Kumar Waghmare',
+            designation: 'Owner',
+            village: 'Corporate',
+            address: 'Corporate',
+            phone: '+91 9822012345',
+            email: 'mr.pravin1222@gmail.com',
+            bloodGroup: 'B+',
+            loginId: 'pravin waghmare',
+            password: 'Blackworm',
+            role: 'SUPER_ADMIN',
+            territory: 'Corporate',
+            allowedTabs: ALL_NAV_MODULES.map((m) => m.id),
+            isActive: true
+          };
+          setIsLoggingIn(false);
+          setCurrentUser(superAdminUser);
+          setLoginId('');
+          setPassword('');
+          setActiveTab('dashboard');
+          setView('list');
+          showNotification(
+            language === 'mr' ? 'प्रवीण कुमार वाघमारे म्हणून यशस्वीरित्या लॉगिन झाले.' : 'Logged in successfully as Pravin Kumar Waghmare!',
+            'success'
+          );
+          return;
+        }
+
+        // Master admin alternative login
+        const isMasterAdminLogin = (
+          (cleanId === 'admin') &&
+          (cleanPass === 'Blackworm' || cleanPass === '123')
         );
-        return;
-      }
 
-      // Master admin alternative login
-      const isMasterAdminLogin = (
-        (cleanId === 'admin') &&
-        (cleanPass === 'Blackworm' || cleanPass === '123')
-      );
+        // Strict exact check against registered users & master admin credentials
+        let user = users.find(u => {
+          const uLogin = (u.loginId || '').trim().toLowerCase();
+          const uEmail = (u.email || '').trim().toLowerCase();
+          const uPhone = (u.phone || '').trim().toLowerCase();
+          const uPass = (u.password || '').trim();
 
-      // Strict exact check against registered users & master admin credentials
-      let user = users.find(u => {
-        const uLogin = (u.loginId || '').trim().toLowerCase();
-        const uEmail = (u.email || '').trim().toLowerCase();
-        const uPhone = (u.phone || '').trim().toLowerCase();
-        const uPass = (u.password || '').trim();
+          const matchId = (uLogin === cleanId) || 
+                          (uEmail === cleanId) || 
+                          (uPhone === cleanId);
 
-        // Exact match required on Login ID / Email / Phone AND Password
-        const matchId = (uLogin === cleanId) || 
-                        (uEmail === cleanId) || 
-                        (uPhone === cleanId);
+          return matchId && (uPass === cleanPass);
+        });
 
-        const matchPass = (uPass === cleanPass);
+        // Master admin login fallback
+        if (!user && isMasterAdminLogin) {
+          user = {
+            id: 'USR-001',
+            fullName: 'Shreedhar Balkrushna Shinde',
+            name: 'Shreedhar Balkrushna Shinde',
+            designation: 'Owner',
+            village: 'Vijaynagar (Mhaisal)',
+            address: 'Sangli',
+            phone: '+91 7798716201',
+            email: 'blackwormagritechpvtltd@gmail.com',
+            bloodGroup: 'O+',
+            loginId: 'admin',
+            password: '123',
+            role: 'ADMIN',
+            territory: 'Head Office (Sangli)',
+            allowedTabs: ALL_NAV_MODULES.map(m => m.id),
+            isActive: true
+          };
+        }
 
-        return matchId && matchPass;
-      });
+        setIsLoggingIn(false);
 
-      // Master admin login fallback
-      if (!user && isMasterAdminLogin) {
-        user = {
-          id: 'USR-001',
-          fullName: 'Shreedhar Balkrushna Shinde',
-          name: 'Shreedhar Balkrushna Shinde',
-          designation: 'Owner',
-          village: 'Vijaynagar (Mhaisal)',
-          address: 'Sangli',
-          phone: '+91 7798716201',
-          email: 'blackwormagritechpvtltd@gmail.com',
-          bloodGroup: 'O+',
-          loginId: 'admin',
-          password: '123',
-          role: 'admin',
-          territory: 'Head Office (Sangli)',
-          allowedTabs: ALL_NAV_MODULES.map(m => m.id),
-        };
-      }
+        if (user) {
+          setCurrentUser(user);
+          setLoginId('');
+          setPassword('');
+          
+          const isAdminUser = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.id === 'USR-001';
+          setActiveTab(isAdminUser ? 'dashboard' : 'target-sheet');
+          setView(isAdminUser ? 'list' : 'profile');
 
-      setIsLoggingIn(false);
-
-      if (user) {
-        setCurrentUser(user);
-        setLoginId('');
-        setPassword('');
-        setActiveTab(user.role === 'admin' || user.id === 'USR-PRAVIN' ? 'dashboard' : 'target-sheet');
-        setView(user.role === 'admin' || user.id === 'USR-001' ? 'list' : 'profile');
         showNotification(
-          language === 'mr' ? `${user.name} म्हणून यशस्वीरित्या लॉगिन झाले.` : `Login Successful as ${user.name}!`,
+          language === 'mr'
+            ? `${user.fullName || user.name} (${user.designation || user.role}) म्हणून यशस्वीरित्या लॉगिन झाले.`
+            : `Login Successful as ${user.fullName || user.name} (${user.designation || user.role})!`,
           'success'
         );
       } else {
@@ -452,103 +509,406 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 
-  const renderProfile = (user: User) => (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-slate-100">
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center border-2 border-slate-200">
-            <UserIcon className="w-8 h-8 text-slate-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">{user.fullName}</h2>
-            <p className="text-sm font-semibold text-red-600 uppercase tracking-wide">
-              {user.designation || user.role.toUpperCase()}
-            </p>
-            {isAdmin && (
-              <button 
-                onClick={() => setView('list')}
-                className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-bold rounded-lg shadow-sm hover:bg-slate-800 transition-all active:scale-95"
-              >
-                <Users className="w-3.5 h-3.5" />
-                {language === 'mr' ? 'युजर लिस्ट पहा' : 'View User List'}
-              </button>
-            )}
-          </div>
-        </div>
-        <button 
-          onClick={() => {
-            setCurrentUser(null);
-            setView('login');
-            showNotification(
-              language === 'mr' ? 'यशस्वीरित्या लॉग आऊट झाले!' : 'Logged out successfully!',
-              'info'
-            );
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition-colors border border-red-200 cursor-pointer active:scale-95"
-        >
-          <LogOut className="w-4 h-4" />
-          {language === 'mr' ? 'लॉग आऊट' : 'Logout'}
-        </button>
-      </div>
+  const handleSaveProfile = () => {
+    const user = selectedUserForView || currentUser;
+    if (!user) return;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Briefcase className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'डेसिग्नेशन' : 'Designation'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.designation}</p>
+    // Save Personal Info
+    updateUser(user.id, {
+      fullName: profileForm.fullName,
+      name: profileForm.fullName,
+      phone: profileForm.phone,
+      email: profileForm.email,
+      village: profileForm.village,
+      address: profileForm.address,
+      bloodGroup: profileForm.bloodGroup,
+      password: profileForm.password,
+      territory: profileForm.territory,
+    });
+
+    // Save Company & Bank Info (Only if Admin)
+    const isAdminUser = isShreedharUser(currentUser);
+    if (isAdminUser) {
+      updateCompanyDetails({
+        name: profileForm.companyName,
+        tagline: profileForm.tagline,
+        cin: profileForm.cin,
+        gstNo: profileForm.gstNo,
+        address: profileForm.companyAddress,
+        phone: profileForm.companyPhone,
+        email: profileForm.companyEmail,
+        bankDetails: {
+          bankName: profileForm.bankName,
+          accountNo: profileForm.accountNo,
+          ifsc: profileForm.ifsc,
+          accountHolder: profileForm.accountHolder,
+          branch: companyDetails.bankDetails?.branch || '',
+        },
+      });
+    }
+
+    setIsEditingProfile(false);
+    showNotification(
+      language === 'mr' ? 'माहिती यशस्वीरित्या सेव्ह झाली!' : 'Information saved successfully!',
+      'success'
+    );
+  };
+
+  const renderProfile = (user: User) => {
+    const isAdminUser = isShreedharUser(currentUser);
+    const isOwnProfile = currentUser?.id === user.id;
+    const canEdit = isAdminUser || isOwnProfile;
+    
+    return (
+      <div className="max-w-5xl mx-auto animate-in fade-in duration-300 pb-16">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Unified Header */}
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Building2 className="w-5 h-5 text-red-600" />
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                {language === 'mr' ? 'कंपनी व वैयक्तिक माहिती' : 'Company & Profile Information'}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <button
+                  onClick={() => {
+                    if (isEditingProfile) {
+                      handleSaveProfile();
+                    } else {
+                      setIsEditingProfile(true);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-black transition-all shadow-md cursor-pointer ${
+                    isEditingProfile 
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/10'
+                  }`}
+                >
+                  {isEditingProfile ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                  {isEditingProfile ? (language === 'mr' ? 'सर्व माहिती सेव्ह करा' : 'Save All') : (language === 'mr' ? 'माहिती एडिट करा' : 'Edit Information')}
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <MapPin className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'गाव व पत्ता' : 'Village & Address'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.village}, {user.address}</p>
+
+          {isEditingProfile ? (
+            <div className="p-8 space-y-10">
+              {/* COMPANY & BANK EDIT (ADMIN ONLY) */}
+              {isAdminUser && (
+                <div className="space-y-8">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <div className="w-1.5 h-4 bg-red-600 rounded-full" />
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'कंपनीची माहिती' : 'Company Details'}</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कंपनीचे नाव' : 'Company Name'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.companyName}
+                        onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'टॅगलाईन' : 'Tagline'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.tagline}
+                        onChange={(e) => setProfileForm({ ...profileForm, tagline: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">CIN Number</label>
+                      <input
+                        type="text"
+                        value={profileForm.cin}
+                        onChange={(e) => setProfileForm({ ...profileForm, cin: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm focus:border-red-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">GST Number</label>
+                      <input
+                        type="text"
+                        value={profileForm.gstNo}
+                        onChange={(e) => setProfileForm({ ...profileForm, gstNo: e.target.value.toUpperCase() })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm focus:border-red-500"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'नोंदणीकृत पत्ता' : 'Registered Address'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.companyAddress}
+                        onChange={(e) => setProfileForm({ ...profileForm, companyAddress: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 mt-10">
+                    <div className="w-1.5 h-4 bg-emerald-600 rounded-full" />
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'बँक तपशील' : 'Bank Details'}</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कंपनीचे नाव (खातेधारक)' : 'Company Name'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.accountHolder}
+                        onChange={(e) => setProfileForm({ ...profileForm, accountHolder: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'बँकेचे नाव' : 'Bank Name'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.bankName}
+                        onChange={(e) => setProfileForm({ ...profileForm, bankName: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'खाते क्रमांक' : 'Account Number'}</label>
+                      <input
+                        type="text"
+                        value={profileForm.accountNo}
+                        onChange={(e) => setProfileForm({ ...profileForm, accountNo: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono font-bold text-sm focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">IFSC Code</label>
+                      <input
+                        type="text"
+                        value={profileForm.ifsc}
+                        onChange={(e) => setProfileForm({ ...profileForm, ifsc: e.target.value.toUpperCase() })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono font-bold uppercase text-sm focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PERSONAL PROFILE EDIT SECTION */}
+              <div className="space-y-8 mt-10">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <div className="w-1.5 h-4 bg-red-500 rounded-full" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">{language === 'mr' ? 'वैयक्तिक माहिती' : 'Personal Details'}</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'पूर्ण नाव' : 'Full Name'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.fullName}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'मोबाईल नंबर' : 'Mobile Number'}</label>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Email</label>
+                    <input
+                      type="email"
+                      value={profileForm.email}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'गाव / शहर' : 'Village / Town'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.village}
+                      onChange={(e) => setProfileForm({ ...profileForm, village: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'ब्लड ग्रुप' : 'Blood Group'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.bloodGroup}
+                      onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-red-600 text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'पासवर्ड' : 'Password'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.password}
+                      onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'रहिवासी पत्ता' : 'Address'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.address}
+                      onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{language === 'mr' ? 'कार्यक्षेत्र' : 'Territory'}</label>
+                    <input
+                      type="text"
+                      value={profileForm.territory}
+                      onChange={(e) => setProfileForm({ ...profileForm, territory: e.target.value })}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-red-500"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Phone className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'मोबाईल नंबर' : 'Mobile Number'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.phone}</p>
+          ) : (
+            <div className="p-0">
+              {/* COMPANY INFO ROW */}
+              <div className="flex flex-col lg:flex-row border-b border-slate-100">
+                <div className="flex items-center gap-6 lg:w-1/2">
+                  <div className="w-32 h-32 bg-white flex items-center justify-center shrink-0 border-r border-slate-100">
+                    <img
+                      src={companyDetails.logoUrl || BLACKWORM_USER_UPLOADED_LOGO_BASE64 || BLACKWORM_LOGO_BASE64}
+                      alt="Logo"
+                      className="max-h-[85%] max-w-[85%] object-contain mix-blend-multiply"
+                    />
+                  </div>
+                  <div className="min-w-0 pr-4">
+                    <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tight truncate">
+                      {companyDetails.name}
+                    </h4>
+                    <p className="text-sm font-bold text-red-600 italic mt-0.5 tracking-wide">
+                      Agriculture with new perspective
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-8 flex-1 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CIN Number</p>
+                    <p className="text-sm font-bold text-slate-700 font-mono">{companyDetails.cin}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GSTIN Number</p>
+                    <p className="text-sm font-bold text-slate-700 font-mono uppercase">{companyDetails.gstNo}</p>
+                  </div>
+                  <div className="sm:col-span-2 space-y-0.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'mr' ? 'नोंदणीकृत पत्ता' : 'Address'}</p>
+                    <p className="text-sm font-semibold text-slate-600 leading-tight">{companyDetails.address}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* BANK DETAILS ROW */}
+              <div className="p-8 bg-emerald-50/30 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <Landmark className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-[11px] font-black text-emerald-800 uppercase tracking-widest">{language === 'mr' ? 'बँक तपशील माहिती' : 'Official Bank Details'}</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-1.5 space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Company Name (Account Holder)</p>
+                    <p className="text-sm font-black text-slate-900">{companyDetails.bankDetails?.accountHolder || companyDetails.name}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Bank Name</p>
+                    <p className="text-sm font-bold text-slate-700">{companyDetails.bankDetails?.bankName}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">A/C Number</p>
+                    <p className="text-sm font-black text-slate-800 font-mono">{companyDetails.bankDetails?.accountNo}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">IFSC Code</p>
+                    <p className="text-sm font-black text-slate-800 font-mono uppercase">{companyDetails.bankDetails?.ifsc}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PERSONAL INFORMATION ROW */}
+              <div className="p-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <UserIcon className="w-4 h-4 text-red-600" />
+                  <h4 className="text-[11px] font-black text-red-800 uppercase tracking-widest">{language === 'mr' ? 'वैयक्तिक माहिती' : 'Personal Information'}</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Officer Name</p>
+                    <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 flex-wrap">
+                      <span>{user.fullName || user.name}</span>
+                      <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 uppercase">
+                        ({user.designation || user.role})
+                      </span>
+                    </p>
+                  </div>
+                  <div className="lg:col-span-2 space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Address</p>
+                    <p className="text-sm font-semibold text-slate-600 truncate" title={user.address}>{user.address || '-'}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Email ID</p>
+                    <p className="text-sm font-bold text-slate-700 truncate">{user.email || '-'}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Mobile Number</p>
+                    <p className="text-sm font-bold text-slate-800 font-mono">{user.phone}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Blood Group</p>
+                    <p className="text-sm font-black text-red-700">{user.bloodGroup || '-'}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Designation</p>
+                    <p className="text-sm font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
+                  </div>
+                  <div className="lg:col-span-2 space-y-0.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Working Territory</p>
+                    <p className="text-sm font-bold text-slate-700 truncate">{user.territory || '-'}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Mail className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'ईमेल आयडी' : 'Email ID'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.email}</p>
-            </div>
+        {/* Unified Logout Button at the bottom center if it's the own profile view */}
+        {isOwnProfile && !selectedUserForView && (
+          <div className="flex justify-center mt-10">
+            <button
+              onClick={() => {
+                setCurrentUser(null);
+                setView('login');
+                showNotification(
+                  language === 'mr' ? 'यशस्वीरित्या लॉग आऊट झाले!' : 'Logged out successfully!',
+                  'info'
+                );
+              }}
+              className="px-10 py-4 bg-slate-900 text-white font-black text-sm rounded-2xl hover:bg-slate-800 transition-all active:scale-95 cursor-pointer flex items-center gap-3 shadow-xl"
+            >
+              <LogOut className="w-5 h-5 text-red-500" />
+              {language === 'mr' ? 'सिस्टममधून बाहेर पडा (Logout)' : 'Logout from System'}
+            </button>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Droplet className="w-5 h-5 text-red-500" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'ब्लड ग्रुप' : 'Blood Group'}</p>
-              <p className="text-sm font-bold text-red-600">{user.bloodGroup}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Shield className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'लॉगिन आयडी' : 'Login ID'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.loginId}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <Lock className="w-5 h-5 text-slate-400" />
-            <div>
-              <p className="text-[10px] uppercase font-bold text-slate-500">{language === 'mr' ? 'पासवर्ड' : 'Password'}</p>
-              <p className="text-sm font-bold text-slate-800">{user.password}</p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCreateUser = () => (
     <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
@@ -759,6 +1119,47 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 
+  const filteredAndSortedUsers = useMemo(() => {
+    let list = [...users];
+    
+    // STRICT FILTERING: Hide Super Admin from everyone's view except Super Admin themselves
+    // This removes any identity of Super Admin from the user list for regular Admins and Users
+    if (!isPravin) {
+      list = list.filter(u => 
+        u.role !== 'SUPER_ADMIN' && 
+        u.id !== 'USR-PRAVIN-SUPERADMIN' && 
+        u.loginId !== 'pravin waghmare' &&
+        u.email !== 'mr.pravin1222@gmail.com'
+      );
+    }
+    
+    // Admin (Shridhar) should see only their created users or standard roles
+    // They should not see other Admins to keep the list clean as per requirement
+    if (isShreedhar) {
+      list = list.filter(u => u.role !== 'admin' && u.role !== 'ADMIN' && u.id !== 'USR-001' && u.loginId !== 'admin');
+    }
+
+    const getRank = (u: User) => {
+      const d = (u.designation || '').toLowerCase();
+      const r = (u.role || '').toLowerCase();
+      if (d.includes('owner')) return 1;
+      if (r === 'admin' || r === 'ADMIN' || r === 'SUPER_ADMIN') return 2;
+      if (d.includes('director')) return 3;
+      if (d.includes('manager')) return 4;
+      if (d.includes('asm') || r === 'asm') return 5;
+      if (d.includes('sales officer') || r === 'sales-officer') return 6;
+      if (d.includes('field officer') || r === 'field-officer') return 7;
+      return 10;
+    };
+    
+    return list.sort((a, b) => {
+      const rA = getRank(a);
+      const rB = getRank(b);
+      if (rA !== rB) return rA - rB;
+      return (a.fullName || a.name || '').localeCompare(b.fullName || b.name || '');
+    });
+  }, [users, isPravin, isShreedhar]);
+
   const renderUserList = () => (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-2xs">
@@ -784,7 +1185,7 @@ export const UserManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((user) => (
+        {filteredAndSortedUsers.map((user: User) => (
           <div 
             key={user.id}
             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between"
@@ -796,8 +1197,10 @@ export const UserManagement: React.FC = () => {
                     <UserIcon className="w-5 h-5 text-slate-400" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-slate-900 truncate">{user.fullName || user.name}</h4>
-                    <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
+                    <h4 className="text-sm font-bold text-slate-900 truncate">
+                      {user.fullName || user.name}
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{user.designation || user.role}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -845,11 +1248,11 @@ export const UserManagement: React.FC = () => {
                   <span className="truncate">{user.phone}</span>
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0 bg-slate-50 p-1 rounded">
-                  <UserIcon className="w-3 h-3 text-blue-500 shrink-0" />
+                  <Fingerprint className="w-3 h-3 text-blue-500 shrink-0" />
                   <span className="truncate font-bold text-slate-800">{user.loginId}</span>
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0 bg-slate-50 p-1 rounded">
-                  <Key className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <LockKeyhole className="w-3 h-3 text-emerald-500 shrink-0" />
                   <span className="truncate font-bold text-slate-800">
                     {user.role === 'admin' || user.id === 'USR-PRAVIN' || user.id === 'USR-001' ? '••••••••' : user.password}
                   </span>

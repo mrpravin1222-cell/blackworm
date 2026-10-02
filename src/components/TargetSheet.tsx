@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { TargetItem, MonthTargetRow } from '../types';
+import { TargetItem, MonthTargetRow, User } from '../types';
+import { sortUsersByRank } from '../utils/permissionHelpers';
 import {
   DEFAULT_MONTH_NAMES,
   generateDefaultMonthlyBreakdown,
@@ -65,9 +66,12 @@ export const TargetSheet: React.FC = React.memo(() => {
 
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
-    currentUser.loginId === 'admin' ||
-    currentUser.loginId === 'pravin waghmare'
+    currentUser.loginId === 'admin'
   ) : false;
+
+  const sortedUsers = useMemo(() => {
+    return sortUsersByRank(users);
+  }, [users]);
 
   // Visible targets list based on role (excluding deleted users)
   const visibleTargets = useMemo(() => {
@@ -754,7 +758,9 @@ export const TargetSheet: React.FC = React.memo(() => {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900">Designation :-</span>
                     <span className="font-bold text-slate-800">
-                      {activeTarget.executiveRole || 'Sr.Sales Officer'}
+                      {(currentUser && (activeTarget.executiveId === currentUser.id || activeTarget.executiveName === currentUser.fullName || activeTarget.executiveName === currentUser.name))
+                        ? (currentUser.designation || activeTarget.executiveRole || 'Sales Officer')
+                        : (activeTarget.executiveRole || 'Sales Officer')}
                     </span>
                   </div>
                 </td>
@@ -1429,7 +1435,7 @@ export const TargetSheet: React.FC = React.memo(() => {
                   onChange={(e) => setNewSheetUser(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold"
                 >
-                  {users.map((u) => (
+                  {sortedUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.fullName || u.name} ({u.role}) - {u.territory}
                     </option>

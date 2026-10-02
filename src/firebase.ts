@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -38,6 +39,8 @@ const app = initializeApp(activeConfig);
 export const db = activeConfig.firestoreDatabaseId
   ? getFirestore(app, activeConfig.firestoreDatabaseId)
   : getFirestore(app);
+
+export const auth = getAuth(app);
 
 // Enable offline persistence for zero-second data loading even without internet
 if (typeof window !== 'undefined') {

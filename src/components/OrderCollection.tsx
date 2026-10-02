@@ -56,8 +56,7 @@ export const OrderCollection: React.FC = React.memo(() => {
   // Check if current user is admin
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
-    currentUser.loginId === 'admin' ||
-    currentUser.loginId === 'pravin waghmare'
+    currentUser.loginId === 'admin'
   ) : false;
 
   // Visible orders based on officer role
@@ -482,25 +481,16 @@ export const OrderCollection: React.FC = React.memo(() => {
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Top Header Card */}
-      <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="print:hidden flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
-            <Receipt className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
+            <Receipt className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                {language === 'mr' ? 'ऑर्डर आणि कलेक्शन पोर्टल' : 'Order & Collection Portal'}
-              </h1>
-              <span className="px-2 py-0.5 rounded-md bg-red-50 text-red-700 font-bold text-xs border border-red-200">
-                {language === 'mr' ? 'लाईव्ह आऊटस्टँडिंग व टार्गेट सिंक' : 'Live Sync'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {language === 'mr'
-                ? 'डीलर ऑर्डर बिलिंग, करंट आऊटस्टँडिंग ट्रॅकिंग आणि टार्गेट सीटमध्ये ऑटो-कलेक्शन सिंक'
-                : 'Dealer billing, live outstanding management, and automatic Target Sheet collection synchronization'}
-            </p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              {language === 'mr' ? 'ऑर्डर आणि कलेक्शन पोर्टल' : 'Order & Collection Portal'}
+            </h1>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block" title="Live Sync"></span>
           </div>
         </div>
 
@@ -509,19 +499,19 @@ export const OrderCollection: React.FC = React.memo(() => {
           <button
             id="new-order-bill-btn"
             onClick={() => handleOpenNewOrder()}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'mr' ? '+ नवीन ऑर्डर बिल' : '+ New Order Bill'}</span>
+            <span>{language === 'mr' ? 'नवीन ऑर्डर' : 'New Order'}</span>
           </button>
 
           <button
             id="new-collection-receipt-btn"
             onClick={() => handleOpenNewCollection()}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
           >
-            <IndianRupee className="w-4 h-4" />
-            <span>{language === 'mr' ? '+ वसुली जमा करा' : '+ Record Collection'}</span>
+            <Plus className="w-4 h-4" />
+            <span>{language === 'mr' ? 'कलेक्शन' : 'Collection'}</span>
           </button>
         </div>
       </div>

@@ -136,10 +136,25 @@ export const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="py-6 sm:py-10 animate-in fade-in duration-200">
-      <div className="max-w-5xl mx-auto px-3 sm:px-6">
+    <div className="py-4 sm:py-6 animate-in fade-in duration-200">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 space-y-4">
+        {/* Logged in User Profile (Single Clean Line: Icon + Name + Small Designation) */}
+        {currentUser && (
+          <div className="flex items-center justify-center text-center">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs whitespace-nowrap">
+              <span className="text-xs sm:text-sm shrink-0">👤</span>
+              <span className="text-xs sm:text-sm font-black text-slate-900">
+                {currentUser.fullName || currentUser.name}
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500">
+                ({currentUser.designation || currentUser.role || 'Sales Officer'})
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* All icons in a clean grid layout */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-y-7 sm:gap-y-9 gap-x-2 sm:gap-x-6 justify-items-center">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-y-7 sm:gap-y-9 gap-x-2 sm:gap-x-6 justify-items-center pt-2">
           {visibleIcons.map((item) => {
             const Icon = item.icon;
             const title = language === 'mr' ? item.titleMr : item.titleEn;
