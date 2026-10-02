@@ -34,12 +34,13 @@ export const STANDARD_USER_ALLOWED_TABS: NavTab[] = [
 
 export const isSuperAdmin = (user: User | null): boolean => {
   if (!user) return false;
-  const safeEmail = (user.email || '').toLowerCase().trim();
   const safeRole = (user.role || '').toUpperCase();
+  const safeLoginId = (user.loginId || '').toLowerCase().trim();
+  
   return (
     safeRole === 'SUPER_ADMIN' ||
-    safeEmail === 'mr.pravin1222@gmail.com' ||
-    user.id === 'USR-PRAVIN-SUPERADMIN'
+    user.id === 'USR-MASTER-SUPERADMIN' ||
+    safeLoginId === 'super admin'
   );
 };
 
@@ -64,8 +65,6 @@ export const isAdmin = (user: User | null): boolean => {
   return isSuperAdmin(user) || isShreedharUser(user) || user?.role?.toUpperCase() === 'ADMIN';
 };
 
-export const isPravinUser = isSuperAdmin;
-
 export const isTabAllowedForUser = (tabId: NavTab, user: User | null): boolean => {
   if (!user || user.id === 'GUEST') {
     return tabId === 'user-management';
@@ -76,13 +75,14 @@ export const isTabAllowedForUser = (tabId: NavTab, user: User | null): boolean =
     return true;
   }
 
-  // Admin (Shreedhar) has full access to modules but follows workflow
+  // Admin (Shreedhar) has full access to modules
   if (isShreedharUser(user)) {
     return true;
   }
 
-  // Regular users are strictly restricted by assigned allowedTabs or standard allowed tabs
-  if (user.allowedTabs && Array.isArray(user.allowedTabs) && user.allowedTabs.length > 0) {
+  // Regular users (including Pravin Waghmare, Rohit Ghadge, Hrishikesh, etc.)
+  // strictly see ONLY the modules/tabs given to them by Admin
+  if (user.allowedTabs && Array.isArray(user.allowedTabs)) {
     return user.allowedTabs.includes(tabId);
   }
 

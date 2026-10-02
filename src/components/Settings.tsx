@@ -7,34 +7,24 @@ import {
   Save,
   Upload,
   User as UserIcon,
-  Lock,
-  Download,
-  Database,
-  Globe,
   Edit2,
-  RotateCcw,
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const {
     language,
-    setLanguage,
     currentUser,
     updateUser,
     companyDetails,
     updateCompanyDetails,
-    exportDataJSON,
-    importDataJSON,
     showNotification,
   } = useApp();
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.loginId === 'admin' || currentUser?.id === 'USR-001';
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [companyForm, setCompanyForm] = useState({ ...companyDetails });
   const [bankForm, setBankForm] = useState({ ...companyDetails.bankDetails });
-  const [importText, setImportText] = useState('');
-  const [showImportBox, setShowImportBox] = useState(false);
 
   const [userProfileForm, setUserProfileForm] = useState({
     fullName: currentUser?.fullName || currentUser?.name || '',
@@ -107,29 +97,6 @@ export const Settings: React.FC = () => {
       setCompanyForm(prev => ({ ...prev, logoUrl: base64 }));
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleDownloadBackup = () => {
-    const json = exportDataJSON();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `blackworm_agritech_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importText.trim()) return;
-    const ok = importDataJSON(importText);
-    if (ok) {
-      setImportText('');
-      setShowImportBox(false);
-    }
   };
 
   return (
@@ -492,78 +459,6 @@ export const Settings: React.FC = () => {
         )}
       </div>
 
-      {/* SYSTEM ADMIN TOOLS */}
-      {isAdmin && !isEditing && (
-        <div className="mt-8 bg-slate-900 rounded-3xl p-6 text-white flex flex-wrap items-center justify-between gap-6 shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Database className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-black tracking-tight">{language === 'mr' ? 'सिस्टम बॅकअप व रिस्टोर' : 'System Backup & Recovery'}</h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Internal Data Management</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadBackup}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black transition-all active:scale-95 border border-white/10 cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              {language === 'mr' ? 'डेटा बॅकअप' : 'Download Backup'}
-            </button>
-            
-            {!showImportBox ? (
-              <button
-                onClick={() => setShowImportBox(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black transition-all active:scale-95 border border-white/10 cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-                {language === 'mr' ? 'डेटा रिस्टोर' : 'Restore Data'}
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowImportBox(false)}
-                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black transition-all active:scale-95 cursor-pointer"
-              >
-                {language === 'mr' ? 'बंद करा' : 'Close'}
-              </button>
-            )}
-          </div>
-
-          {showImportBox && (
-            <form onSubmit={handleImportSubmit} className="w-full mt-4 space-y-3 pt-4 border-t border-white/10 animate-in slide-in-from-top-4 duration-300">
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder="Paste JSON data here..."
-                className="w-full h-32 p-4 bg-white/5 border border-white/10 rounded-2xl font-mono text-[10px] text-white outline-hidden focus:border-red-500"
-              />
-              <button
-                type="submit"
-                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-sm shadow-lg shadow-red-600/20 transition-all active:scale-95 cursor-pointer"
-              >
-                Import Data Now
-              </button>
-            </form>
-          )}
-        </div>
-      )}
-
-      {/* Global Control: Language Toggle */}
-      {!isEditing && (
-        <div className="flex justify-center mt-10">
-          <button
-            onClick={() => setLanguage(language === 'en' ? 'mr' : 'en')}
-            className="px-6 py-3 bg-white border border-slate-200 text-slate-800 rounded-2xl font-black text-sm transition-all active:scale-95 shadow-sm flex items-center gap-2 cursor-pointer hover:bg-slate-50"
-          >
-            <Globe className="w-5 h-5 text-blue-600" />
-            {language === 'en' ? 'मराठी मध्ये बदला (Switch to Marathi)' : 'Switch to English'}
-          </button>
-        </div>
-      )}
-      
       <input
         type="file"
         ref={fileInputRef}

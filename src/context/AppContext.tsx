@@ -28,7 +28,7 @@ import {
   initialDailyActivities,
 } from '../data/initialData';
 import { createTargetSheetForUser, getMonthNameFromDate, DEFAULT_MONTH_NAMES } from '../utils/targetHelpers';
-import { isTabAllowedForUser, isSuperAdmin } from '../utils/permissionHelpers';
+import { isTabAllowedForUser, isSuperAdmin, STANDARD_USER_ALLOWED_TABS } from '../utils/permissionHelpers';
 import { safeMergePriceList } from '../utils/productMatching';
 
 // -------------------------------------------------------------------------
@@ -230,6 +230,30 @@ export const normalizeNavTab = (tab: string | undefined | null): NavTab => {
   return 'dashboard';
 };
 
+const isJunkOrDummyPriceItem = (item: any) => {
+  if (!item || typeof item !== 'object') return true;
+  const name = (item.nameMr || item.nameEn || item.name || '').trim();
+  const id = (item.id || '').trim();
+  if (id === 'PROD-C02-1L' || id === 'PROD-C03-10K' || id.startsWith('PRC-') || id.startsWith('BW-P-') || id.startsWith('BW-IMP-')) return true;
+  if (name.startsWith('::') || name.startsWith('.') || name === 'Specialty Grades' || name === '. - % -') return true;
+  if (name.includes('गांडूळखत') || name.includes('Vermi-Wash') || name.includes('ह्युमिक ग्रॅन्युल्स') || name.includes('नीम प्रोटेक्ट') || name.includes('बायो-पोटॅश') || name.includes('Vermi-Gold')) return true;
+  if (!item.mrp || Number(item.mrp) <= 0 || Number(item.mrp) > 50000 || !item.packing) return true;
+  return false;
+};
+
+const sanitizePriceList = (list: any[]): PriceListItem[] => {
+  if (!Array.isArray(list) || list.length === 0) return initialPriceList;
+  const filtered = list.filter(p => !isJunkOrDummyPriceItem(p));
+  const map = new Map<string, PriceListItem>();
+  initialPriceList.forEach(p => map.set(p.id, p));
+  filtered.forEach(p => {
+    if (!isJunkOrDummyPriceItem(p)) {
+      map.set(p.id, p);
+    }
+  });
+  return Array.from(map.values());
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Unique client session ID for avoiding echo loops
   const [clientId] = useState(() => 'CLIENT_' + Math.random().toString(36).substring(2, 9));
@@ -369,7 +393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [priceList, setPriceList] = useState<PriceListItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PRICES);
-      return saved ? JSON.parse(saved) : initialPriceList;
+      return saved ? sanitizePriceList(JSON.parse(saved)) : initialPriceList;
     } catch {
       return initialPriceList;
     }
@@ -408,11 +432,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let list: User[] = saved ? JSON.parse(saved) : initialUsers;
       if (!Array.isArray(list) || list.length === 0) list = initialUsers;
       if (!list.some((u) => u.loginId === 'admin' || u.id === 'USR-001')) {
-        list = [initialUsers[0], ...list];
+        const adminUser = initialUsers.find(u => u.id === 'USR-001') || initialUsers[0];
+        list = [adminUser, ...list];
       }
       const map = new Map<string, User>();
       list.forEach((u) => {
-        if (u && u.id) map.set(u.id, u);
+        if (u && u.id) {
+          if (u.id === 'USR-PRAVIN' || (u.loginId && u.loginId.toLowerCase().trim() === 'pravin')) {
+            map.set(u.id, {
+              ...u,
+              role: 'user',
+              designation: u.designation === 'Owner' ? 'Sales Officer' : u.designation || 'Sales Officer',
+              allowedTabs: (u.allowedTabs && Array.isArray(u.allowedTabs)) ? u.allowedTabs : STANDARD_USER_ALLOWED_TABS,
+            });
+          } else {
+            map.set(u.id, u);
+          }
+        }
       });
       return Array.from(map.values());
     } catch {
@@ -587,26 +623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setCurrentUserState(userData);
             safeSetItem(STORAGE_KEYS.CURRENT_USER, userData);
           } else {
-            // Profile doesn't exist yet, maybe it's the hidden owner
-            if (firebaseUser.email === 'mr.pravin1222@gmail.com') {
-              const superAdmin: User = {
-                id: firebaseUser.uid,
-                fullName: 'Pravin Waghmare',
-                name: 'Pravin Waghmare',
-                email: firebaseUser.email,
-                role: 'SUPER_ADMIN',
-                loginId: 'pravin waghmare',
-                designation: 'Owner',
-                territory: 'Corporate',
-                village: 'Corporate',
-                address: 'Corporate',
-                phone: '',
-                bloodGroup: '',
-                isActive: true
-              };
-              setCurrentUserState(superAdmin);
-              setDoc(userDocRef, superAdmin).catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${firebaseUser.uid}`));
-            }
+            // Profile doesn't exist yet, we just wait for admin to create it
           }
         }, (err) => handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`));
       } else {
@@ -630,9 +647,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (serverItems.length > 0) {
         setPriceList(prev => {
           const map = new Map<string, PriceListItem>();
-          prev.forEach(item => map.set(item.id, item));
-          serverItems.forEach(item => map.set(item.id, item));
-          const merged = Array.from(map.values());
+          prev.forEach(item => {
+            if (!isJunkOrDummyPriceItem(item)) map.set(item.id, item);
+          });
+          serverItems.forEach(item => {
+            if (!isJunkOrDummyPriceItem(item)) map.set(item.id, item);
+          });
+          const merged = sanitizePriceList(Array.from(map.values()));
           if (JSON.stringify(merged) !== JSON.stringify(prev)) {
             safeSetItem(STORAGE_KEYS.PRICES, merged);
             return merged;
@@ -798,8 +819,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!currentUser || currentUser.id === 'GUEST') return;
 
-    // Use USR-001 or USR-PRAVIN if they are standard records, but for SUPERADMIN we might not have a doc
-    const userId = currentUser.id === 'USR-PRAVIN-SUPERADMIN' ? 'USR-PRAVIN' : currentUser.id;
+    // Use USR-001 or standard records, but for SUPERADMIN we might not have a doc
+    const userId = currentUser.id === 'USR-MASTER-SUPERADMIN' ? 'USR-001' : currentUser.id;
     
     const unsub = onSnapshot(doc(db, 'users', userId), (snapshot) => {
       if (snapshot.exists()) {
@@ -828,7 +849,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUsers(prev => {
           const map = new Map<string, User>();
           prev.forEach(u => map.set(u.id, u));
-          serverUsers.forEach(u => map.set(u.id, u));
+          serverUsers.forEach(u => {
+            if (u.id === 'USR-PRAVIN' || (u.loginId && u.loginId.toLowerCase().trim() === 'pravin')) {
+              map.set(u.id, {
+                ...u,
+                role: 'user',
+                designation: u.designation === 'Owner' ? 'Sales Officer' : u.designation || 'Sales Officer',
+                allowedTabs: (u.allowedTabs && Array.isArray(u.allowedTabs)) ? u.allowedTabs : STANDARD_USER_ALLOWED_TABS,
+              });
+            } else {
+              map.set(u.id, u);
+            }
+          });
           const merged = Array.from(map.values());
           if (JSON.stringify(merged) !== JSON.stringify(prev)) {
             safeSetItem(STORAGE_KEYS.USERS, merged);
@@ -993,7 +1025,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
           // Real-time update of currentUser profile & permissions when modified
-          if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
+          if (currentUser && currentUser.id !== 'USR-MASTER-SUPERADMIN') {
             const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
             if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
               setCurrentUser(refreshed);
@@ -1122,7 +1154,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
               // Real-time update of currentUser permissions/profile when modified by Admin
-              if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
+              if (currentUser && currentUser.id !== 'USR-MASTER-SUPERADMIN') {
                 const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
                 if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
                   setCurrentUser(refreshed);
@@ -1302,7 +1334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             usersRef.current = uniqueUsers;
             safeSetItem(STORAGE_KEYS.USERS, uniqueUsers);
 
-            if (currentUser && currentUser.id !== 'USR-PRAVIN-SUPERADMIN') {
+            if (currentUser && currentUser.id !== 'USR-MASTER-SUPERADMIN') {
               const refreshed = uniqueUsers.find((u) => u.id === currentUser.id || u.email === currentUser.email || u.loginId === currentUser.loginId);
               if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(currentUser)) {
                 setCurrentUser(refreshed);
@@ -2166,8 +2198,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (
       userToDelete.id === 'USR-001' ||
       userToDelete.loginId === 'admin' ||
-      userToDelete.id === 'USR-PRAVIN-SUPERADMIN' ||
-      userToDelete.loginId === 'pravin waghmare'
+      userToDelete.id === 'USR-MASTER-SUPERADMIN' ||
+      userToDelete.loginId === 'super admin'
     ) {
       showNotification(
         language === 'mr'

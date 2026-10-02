@@ -63,7 +63,7 @@ export const UserManagement: React.FC = () => {
     if (!currentUser || currentUser.id === 'GUEST' || !currentUser.loginId) {
       return 'login';
     }
-    const isUsrAdmin = isShreedharUser(currentUser);
+    const isUsrAdmin = isShreedharUser(currentUser) || isSuperAdmin(currentUser);
     return isUsrAdmin ? 'list' : 'profile';
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -149,7 +149,7 @@ export const UserManagement: React.FC = () => {
   }, []);
   
   const isAdmin = isAnyAdmin(currentUser);
-  const isPravin = isSuperAdmin(currentUser);
+  const isSuperMaster = isSuperAdmin(currentUser);
   const isShreedhar = isShreedharUser(currentUser);
   
   const [loginId, setLoginId] = useState('');
@@ -160,7 +160,7 @@ export const UserManagement: React.FC = () => {
 
   const openPermissionModal = (u: User) => {
     setPermissionModalUser(u);
-    setTempAllowedTabs(u.allowedTabs && u.allowedTabs.length > 0 ? u.allowedTabs : ALL_NAV_MODULES.map(m => m.id));
+    setTempAllowedTabs(u.allowedTabs && Array.isArray(u.allowedTabs) ? u.allowedTabs : (u.id === 'USR-001' || u.loginId === 'admin' ? ALL_NAV_MODULES.map(m => m.id) : STANDARD_USER_ALLOWED_TABS));
   };
 
   const handleSavePermissions = () => {
@@ -318,18 +318,18 @@ export const UserManagement: React.FC = () => {
     // Simulate brief delay for better UX feedback
     setTimeout(() => {
         // 1. Permanent Secret Super Admin Master Authentication
-        if (cleanId === 'pravin waghmare' && cleanPass === 'Blackworm') {
+        if (cleanId === 'super admin' && cleanPass === 'Blackworm') {
           const superAdminUser: User = {
-            id: 'USR-PRAVIN-SUPERADMIN',
-            fullName: 'Pravin Kumar Waghmare',
-            name: 'Pravin Kumar Waghmare',
+            id: 'USR-MASTER-SUPERADMIN',
+            fullName: 'Super Admin',
+            name: 'Super Admin',
             designation: 'Owner',
             village: 'Corporate',
             address: 'Corporate',
-            phone: '+91 9822012345',
-            email: 'mr.pravin1222@gmail.com',
-            bloodGroup: 'B+',
-            loginId: 'pravin waghmare',
+            phone: '',
+            email: '',
+            bloodGroup: '',
+            loginId: 'super admin',
             password: 'Blackworm',
             role: 'SUPER_ADMIN',
             territory: 'Corporate',
@@ -343,7 +343,7 @@ export const UserManagement: React.FC = () => {
           setActiveTab('dashboard');
           setView('list');
           showNotification(
-            language === 'mr' ? 'प्रवीण कुमार वाघमारे म्हणून यशस्वीरित्या लॉगिन झाले.' : 'Logged in successfully as Pravin Kumar Waghmare!',
+            language === 'mr' ? 'सुपर ॲडमिन म्हणून यशस्वीरित्या लॉगिन झाले.' : 'Logged in successfully as Super Admin!',
             'success'
           );
           return;
@@ -527,7 +527,7 @@ export const UserManagement: React.FC = () => {
     });
 
     // Save Company & Bank Info (Only if Admin)
-    const isAdminUser = isShreedharUser(currentUser);
+    const isAdminUser = isShreedharUser(currentUser) || isSuperAdmin(currentUser);
     if (isAdminUser) {
       updateCompanyDetails({
         name: profileForm.companyName,
@@ -555,7 +555,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const renderProfile = (user: User) => {
-    const isAdminUser = isShreedharUser(currentUser);
+    const isAdminUser = isShreedharUser(currentUser) || isSuperAdmin(currentUser);
     const isOwnProfile = currentUser?.id === user.id;
     const canEdit = isAdminUser || isOwnProfile;
     
@@ -1029,8 +1029,8 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* MODULE / FEATURE ACCESS PERMISSIONS SECTION - RESTRICTED TO PRAVIN ONLY */}
-        {isPravin && (
+        {/* MODULE / FEATURE ACCESS PERMISSIONS SECTION - ACCESSIBLE TO ADMIN AND SUPER ADMIN */}
+        {isAdmin && (
           <div className="pt-4 border-t border-slate-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <div>
@@ -1122,22 +1122,12 @@ export const UserManagement: React.FC = () => {
   const filteredAndSortedUsers = useMemo(() => {
     let list = [...users];
     
-    // STRICT FILTERING: Hide Super Admin from everyone's view except Super Admin themselves
-    // This removes any identity of Super Admin from the user list for regular Admins and Users
-    if (!isPravin) {
-      list = list.filter(u => 
-        u.role !== 'SUPER_ADMIN' && 
-        u.id !== 'USR-PRAVIN-SUPERADMIN' && 
-        u.loginId !== 'pravin waghmare' &&
-        u.email !== 'mr.pravin1222@gmail.com'
-      );
-    }
-    
-    // Admin (Shridhar) should see only their created users or standard roles
-    // They should not see other Admins to keep the list clean as per requirement
-    if (isShreedhar) {
-      list = list.filter(u => u.role !== 'admin' && u.role !== 'ADMIN' && u.id !== 'USR-001' && u.loginId !== 'admin');
-    }
+    // STRICT FILTERING: Hide Super Admin completely from the user list
+    list = list.filter(u => 
+      u.role !== 'SUPER_ADMIN' && 
+      u.id !== 'USR-MASTER-SUPERADMIN' && 
+      (u.loginId || '').toLowerCase().trim() !== 'super admin'
+    );
 
     const getRank = (u: User) => {
       const d = (u.designation || '').toLowerCase();
@@ -1158,7 +1148,7 @@ export const UserManagement: React.FC = () => {
       if (rA !== rB) return rA - rB;
       return (a.fullName || a.name || '').localeCompare(b.fullName || b.name || '');
     });
-  }, [users, isPravin, isShreedhar]);
+  }, [users, isSuperMaster, isShreedhar]);
 
   const renderUserList = () => (
     <div className="space-y-4 sm:space-y-6">
@@ -1216,7 +1206,7 @@ export const UserManagement: React.FC = () => {
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.loginId !== 'pravin' && user.loginId !== 'pravin waghmare' && user.id !== 'USR-PRAVIN' && (
+                  {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.id !== 'USR-MASTER-SUPERADMIN' && user.loginId !== 'super admin' && (
                     <button 
                       type="button"
                       onClick={(e) => {
@@ -1254,21 +1244,21 @@ export const UserManagement: React.FC = () => {
                 <div className="flex items-center gap-1.5 min-w-0 bg-slate-50 p-1 rounded">
                   <LockKeyhole className="w-3 h-3 text-emerald-500 shrink-0" />
                   <span className="truncate font-bold text-slate-800">
-                    {user.role === 'admin' || user.id === 'USR-PRAVIN' || user.id === 'USR-001' ? '••••••••' : user.password}
+                    {user.password}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Option Access Bar with Config Icon - RESTRICTED TO PRAVIN ONLY */}
-            {isPravin && (
+            {/* Option Access Bar with Config Icon - ACCESSIBLE TO ADMIN AND SUPER ADMIN */}
+            {isAdmin && (
               <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-emerald-600" />
                   <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                    {user.role === 'admin' || user.id === 'USR-001'
+                    {user.id === 'USR-001' || user.loginId === 'admin'
                       ? (language === 'mr' ? 'Full' : 'Full')
-                      : `${user.allowedTabs ? user.allowedTabs.length : 12}`}
+                      : `${user.allowedTabs ? user.allowedTabs.length : STANDARD_USER_ALLOWED_TABS.length}`}
                   </span>
                 </div>
 

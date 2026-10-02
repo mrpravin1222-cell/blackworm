@@ -18,10 +18,7 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'mr.pravin1222@gmail.com' ||
-        getUserData().role == 'SUPER_ADMIN'
-      );
+      return isSignedIn() && getUserData().role == 'SUPER_ADMIN';
     }
     
     function isAdmin() {

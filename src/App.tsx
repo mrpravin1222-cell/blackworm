@@ -147,7 +147,10 @@ const MainContent: React.FC = () => {
   // Auto-redirect to allowed tab if user somehow lands on an unauthorized tab
   React.useEffect(() => {
     if (currentUser && !isTabAllowedForUser(activeTab, currentUser)) {
-      setActiveTab('target-sheet');
+      const fallbackTab = (currentUser.allowedTabs && currentUser.allowedTabs.length > 0)
+        ? currentUser.allowedTabs[0]
+        : 'target-sheet';
+      setActiveTab(fallbackTab);
     }
   }, [currentUser, activeTab, setActiveTab]);
 
@@ -172,6 +175,19 @@ const MainContent: React.FC = () => {
   }
 
   const renderTabContent = () => {
+    if (currentUser && !isTabAllowedForUser(activeTab, currentUser)) {
+      return (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center max-w-md mx-auto my-12 shadow-sm">
+          <p className="text-slate-800 font-bold text-base">
+            {language === 'mr' ? 'तुम्हाला हा विभाग पाहण्याची परवानगी नाही.' : 'You do not have access to this module.'}
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            {language === 'mr' ? 'अधिक परवानग्यांसाठी कृपया ॲडमिनशी संपर्क साधा.' : 'Please contact admin for access permissions.'}
+          </p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;

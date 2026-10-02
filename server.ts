@@ -149,7 +149,26 @@ function loadDatabase(): DatabaseSchema {
   if (base.companyDetails && !base.companyDetails.logoUrl) {
     base.companyDetails.logoUrl = BLACKWORM_USER_UPLOADED_LOGO_BASE64;
   }
-  base.priceList = (base.priceList && base.priceList.length > 0) ? base.priceList : initialPriceList;
+
+  // Sanitize price list: remove corrupted/dummy products
+  const isJunkOrDummy = (item: any) => {
+    if (!item || typeof item !== 'object') return true;
+    const name = (item.nameMr || item.nameEn || item.name || '').trim();
+    const id = (item.id || '').trim();
+    if (id === 'PROD-C02-1L' || id === 'PROD-C03-10K' || id.startsWith('PRC-') || id.startsWith('BW-P-') || id.startsWith('BW-IMP-')) return true;
+    if (name.startsWith('::') || name.startsWith('.') || name === 'Specialty Grades' || name === '. - % -') return true;
+    if (name.includes('गांडूळखत') || name.includes('Vermi-Wash') || name.includes('ह्युमिक ग्रॅन्युल्स') || name.includes('नीम प्रोटेक्ट') || name.includes('बायो-पोटॅश') || name.includes('Vermi-Gold')) return true;
+    if (!item.mrp || Number(item.mrp) <= 0 || Number(item.mrp) > 50000 || !item.packing) return true;
+    return false;
+  };
+
+  const filteredPrices = (base.priceList || []).filter((p: any) => !isJunkOrDummy(p));
+  const priceMap = new Map<string, any>();
+  initialPriceList.forEach((p: any) => priceMap.set(p.id, p));
+  filteredPrices.forEach((p: any) => {
+    if (!isJunkOrDummy(p)) priceMap.set(p.id, p);
+  });
+  base.priceList = Array.from(priceMap.values());
   base.dealerApplications = base.dealerApplications || [];
 
   // Ensure initial targets, orders, collections are present
