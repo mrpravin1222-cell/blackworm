@@ -4,6 +4,8 @@ html {
   scroll-behavior: smooth;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+  touch-action: pan-x pan-y;
 }
 
 body {
@@ -13,6 +15,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+  touch-action: pan-x pan-y;
 }
 
 #root {

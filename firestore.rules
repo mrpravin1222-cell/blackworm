@@ -2,18 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isValidString(val, maxLen) {
-      return val is string && val.size() <= maxLen;
-    }
-
     // Default catch-all rule
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
+    }
+
+    // Central App & Global State Data
+    match /app/{docId} {
+      allow read, write: if true;
+    }
+
+    match /globalData/{docId} {
+      allow read, write: if true;
     }
 
     // User Accounts & Authentication Profiles
@@ -38,6 +38,28 @@ service cloud.firestore {
 
     // Travel Sheets & Allowance Claims
     match /travelSheets/{sheetId} {
+      allow read, write: if true;
+    }
+
+    match /travelExpenses/{expenseId} {
+      allow read, write: if true;
+    }
+
+    // Daily Activities, Farmer Meetings & Site Visits
+    match /dailyActivities/{activityId} {
+      allow read, write: if true;
+    }
+
+    // Farmers, Plots & Schedules
+    match /farmers/{farmerId} {
+      allow read, write: if true;
+    }
+
+    match /plots/{plotId} {
+      allow read, write: if true;
+    }
+
+    match /schedules/{scheduleId} {
       allow read, write: if true;
     }
 

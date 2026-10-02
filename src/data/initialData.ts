@@ -36,7 +36,7 @@ export const initialUsers: User[] = [
     bloodGroup: 'B+',
     loginId: 'pravin',
     password: '123',
-    role: 'user',
+    role: 'admin',
     territory: 'Tasgaon Zone',
     allowedTabs: [
       'dashboard',
@@ -46,6 +46,8 @@ export const initialUsers: User[] = [
       'dealer-form',
       'travel-expenses',
       'scheme',
+      'reporting',
+      'user-management',
       'settings',
     ],
   },

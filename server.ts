@@ -95,8 +95,17 @@ function loadDatabase(): DatabaseSchema {
     dailyActivities: [],
   };
 
+  // Ensure backups directory exists
+  const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
+  if (!fs.existsSync(BACKUPS_DIR)) {
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+  }
+
   // Bidirectional merge of primary & backup arrays so no records are lost
-  if (primaryData && backupData) {
+  if (primaryData || backupData) {
+    const pData = primaryData || {};
+    const bData = backupData || {};
+
     const keys: (keyof DatabaseSchema)[] = [
       'users',
       'dealerApplications',
@@ -110,22 +119,30 @@ function loadDatabase(): DatabaseSchema {
     ];
 
     keys.forEach((key) => {
-      const pArr = Array.isArray(primaryData[key]) ? primaryData[key] : [];
-      const bArr = Array.isArray(backupData[key]) ? backupData[key] : [];
+      const pArr = Array.isArray(pData[key]) ? pData[key] : [];
+      const bArr = Array.isArray(bData[key]) ? bData[key] : [];
       const map = new Map<string, any>();
+      bArr.forEach((item: any) => { if (item && item.id) map.set(item.id, item); });
       pArr.forEach((item: any) => { if (item && item.id) map.set(item.id, item); });
-      bArr.forEach((item: any) => { if (item && item.id && !map.has(item.id)) map.set(item.id, item); });
       (base as any)[key] = Array.from(map.values());
     });
+
+    // Safely merge travelSheets from both primary and backup files
+    const pSheets = pData.travelSheets && typeof pData.travelSheets === 'object' ? pData.travelSheets : {};
+    const bSheets = bData.travelSheets && typeof bData.travelSheets === 'object' ? bData.travelSheets : {};
+    base.travelSheets = { ...bSheets, ...pSheets };
   }
 
   // Ensure default system users are present if missing
   base.users = base.users || [];
+  const adminUser = initialUsers.find((u) => u.loginId === 'admin' || u.id === 'USR-001') || initialUsers[1];
+  const pravinUser = initialUsers.find((u) => u.loginId === 'pravin' || u.id === 'USR-PRAVIN') || initialUsers[0];
+  
   if (!base.users.some((u: any) => u.loginId === 'admin' || u.id === 'USR-001')) {
-    base.users.unshift(initialUsers[0]);
+    base.users.unshift(adminUser);
   }
   if (!base.users.some((u: any) => u.loginId === 'pravin' || u.id === 'USR-PRAVIN')) {
-    base.users.push(initialUsers[1]);
+    base.users.push(pravinUser);
   }
 
   base.companyDetails = base.companyDetails || initialCompanyDetails;
@@ -155,11 +172,18 @@ function saveDatabase(data: DatabaseSchema) {
     fs.writeFileSync(DB_FILE, serialized, 'utf-8');
     // Mirror secondary backup file to guarantee zero data loss
     fs.writeFileSync(BACKUP_DB_FILE, serialized, 'utf-8');
-    // Ensure data directory has an extra timestamped snapshot backup if needed
+    // Permanent backup snapshot
     const permanentBackup = path.join(DATA_DIR, 'db_permanent_backup.json');
-    if (!fs.existsSync(permanentBackup) || Math.random() < 0.05) {
-      fs.writeFileSync(permanentBackup, serialized, 'utf-8');
+    fs.writeFileSync(permanentBackup, serialized, 'utf-8');
+
+    // Rolling safety archive in backups folder
+    const backupsDir = path.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
     }
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dailyBackupFile = path.join(backupsDir, `backup_${todayStr}.json`);
+    fs.writeFileSync(dailyBackupFile, serialized, 'utf-8');
   } catch (err) {
     console.error('Failed to write db.json:', err);
   }
@@ -440,6 +464,7 @@ app.delete('/api/users/:id', (req, res) => {
     (userToDelete.role === 'admin' ||
       userToDelete.loginId === 'admin' ||
       userToDelete.loginId === 'pravin' ||
+      userToDelete.loginId === 'pravin waghmare' ||
       userToDelete.id === 'USR-001' ||
       userToDelete.id === 'USR-PRAVIN')
   ) {
@@ -727,8 +752,53 @@ app.post('/api/travel-sheets', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// --- Reset Database API (Protected) ---
+// --- Backup & Restore API ---
+app.get('/api/backup/history', (req, res) => {
+  try {
+    const backupsDir = path.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(backupsDir)) {
+      return res.json([]);
+    }
+    const files = fs.readdirSync(backupsDir).map(file => {
+      const stats = fs.statSync(path.join(backupsDir, file));
+      return {
+        filename: file,
+        sizeBytes: stats.size,
+        updatedAt: stats.mtime.toISOString(),
+      };
+    }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/backup', (req, res) => {
+  try {
+    const backupsDir = path.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotFile = path.join(backupsDir, `manual_snapshot_${timestamp}.json`);
+    const serialized = JSON.stringify(dbState, null, 2);
+    fs.writeFileSync(snapshotFile, serialized, 'utf-8');
+    res.json({ status: 'ok', filename: path.basename(snapshotFile), timestamp });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// --- Reset Database API (Permanently Locked & Protected) ---
 app.post('/api/reset', (req, res) => {
+  const { authorizedBy, confirmationPin } = req.body;
+  // Strictly prevent any reset without owner's explicit confirmation
+  if (confirmationPin !== 'BLACKWORM_2026_CONFIRM_RESTORE' || (authorizedBy !== 'pravin' && authorizedBy !== 'admin')) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'डेटा सुरक्षित लॉक आहे. अधिकृत परमिशनशिवाय कोणताही डेटा बदलला किंवा रिसेट केला जाऊ शकत नाही.'
+    });
+  }
   // Preserve full backup before any reset attempt
   try {
     const backupSnapshot = path.join(DATA_DIR, `db_safety_archive_${Date.now()}.json`);

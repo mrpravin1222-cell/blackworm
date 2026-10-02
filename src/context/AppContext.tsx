@@ -387,12 +387,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [safeSetItem]);
 
-  // Auto-logout if current user is deleted from the system
+  // Safe auto-logout only if user was genuinely deleted from the central database
   useEffect(() => {
     if (currentUser && currentUser.id !== 'GUEST') {
-      const stillExists = users.some(u => u.id === currentUser.id);
-      if (!stillExists) {
-        setCurrentUser(null);
+      // Do not logout system admin accounts
+      if (
+        currentUser.loginId === 'admin' ||
+        currentUser.loginId === 'pravin' ||
+        currentUser.id === 'USR-001' ||
+        currentUser.id === 'USR-PRAVIN'
+      ) {
+        return;
+      }
+      // Only check if users list is populated (avoid premature logout during loading/sync)
+      if (users.length > 0) {
+        const stillExists = users.some(
+          (u) => u.id === currentUser.id || u.loginId === currentUser.loginId || (u.email && currentUser.email && u.email === currentUser.email)
+        );
+        if (!stillExists) {
+          setCurrentUser(null);
+        }
       }
     }
   }, [users, currentUser, setCurrentUser]);
@@ -634,27 +648,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           safeSetItem(STORAGE_KEYS.COMPANY, db.companyDetails);
         }
         if (Array.isArray(db.priceList)) {
-          setPriceList(db.priceList);
-          priceListRef.current = db.priceList;
-          safeSetItem(STORAGE_KEYS.PRICES, db.priceList);
+          const map = new Map<string, PriceListItem>();
+          priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
+          db.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
+          const uniquePrices = Array.from(map.values());
+          setPriceList(uniquePrices);
+          priceListRef.current = uniquePrices;
+          safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
         }
         if (Array.isArray(db.targets)) {
-          setTargets(db.targets);
-          targetsRef.current = db.targets;
-          safeSetItem(STORAGE_KEYS.TARGETS, db.targets);
+          const map = new Map<string, TargetItem>();
+          targetsRef.current.forEach((t) => { if (t && t.id) map.set(t.id, t); });
+          db.targets.forEach((t: TargetItem) => { if (t && t.id) map.set(t.id, t); });
+          const uniqueTargets = Array.from(map.values());
+          setTargets(uniqueTargets);
+          targetsRef.current = uniqueTargets;
+          safeSetItem(STORAGE_KEYS.TARGETS, uniqueTargets);
         }
         if (Array.isArray(db.dealerApplications)) {
-          setDealerApplications(db.dealerApplications);
-          dealerApplicationsRef.current = db.dealerApplications;
-          safeSetItem(STORAGE_KEYS.DEALERS, db.dealerApplications);
+          const map = new Map<string, DealerApplication>();
+          dealerApplicationsRef.current.forEach((d) => { if (d && d.id) map.set(d.id, d); });
+          db.dealerApplications.forEach((d: DealerApplication) => { if (d && d.id) map.set(d.id, d); });
+          const uniqueDealers = Array.from(map.values());
+          setDealerApplications(uniqueDealers);
+          dealerApplicationsRef.current = uniqueDealers;
+          safeSetItem(STORAGE_KEYS.DEALERS, uniqueDealers);
         }
         if (Array.isArray(db.travelExpenses)) {
-          setTravelExpenses(db.travelExpenses);
-          travelExpensesRef.current = db.travelExpenses;
-          safeSetItem(STORAGE_KEYS.EXPENSES, db.travelExpenses);
+          const map = new Map<string, TravelExpense>();
+          travelExpensesRef.current.forEach((e) => { if (e && e.id) map.set(e.id, e); });
+          db.travelExpenses.forEach((e: TravelExpense) => { if (e && e.id) map.set(e.id, e); });
+          const uniqueExpenses = Array.from(map.values());
+          setTravelExpenses(uniqueExpenses);
+          travelExpensesRef.current = uniqueExpenses;
+          safeSetItem(STORAGE_KEYS.EXPENSES, uniqueExpenses);
         }
         if (Array.isArray(db.users) && db.users.length > 0) {
           const map = new Map<string, User>();
+          // Preserve local users first so unsaved/new local users are never deleted
+          usersRef.current.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
           db.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
           const uniqueUsers = Array.from(map.values());
           setUsers(uniqueUsers);
@@ -670,30 +702,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
         if (Array.isArray(db.activities)) {
-          setActivities(db.activities);
-          activitiesRef.current = db.activities;
-          safeSetItem(STORAGE_KEYS.ACTIVITIES, db.activities);
+          const map = new Map<string, ActivityLog>();
+          activitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+          db.activities.forEach((a: ActivityLog) => { if (a && a.id) map.set(a.id, a); });
+          const uniqueActivities = Array.from(map.values());
+          setActivities(uniqueActivities);
+          activitiesRef.current = uniqueActivities;
+          safeSetItem(STORAGE_KEYS.ACTIVITIES, uniqueActivities);
         }
         if (Array.isArray(db.dailyActivities)) {
-          setDailyActivities(db.dailyActivities);
-          dailyActivitiesRef.current = db.dailyActivities;
-          safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, db.dailyActivities);
+          const map = new Map<string, DailyActivity>();
+          dailyActivitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+          db.dailyActivities.forEach((a: DailyActivity) => { if (a && a.id) map.set(a.id, a); });
+          const uniqueDaily = Array.from(map.values());
+          setDailyActivities(uniqueDaily);
+          dailyActivitiesRef.current = uniqueDaily;
+          safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, uniqueDaily);
         }
         if (Array.isArray(db.dealerOrders)) {
-          setDealerOrders(db.dealerOrders);
-          dealerOrdersRef.current = db.dealerOrders;
-          safeSetItem(STORAGE_KEYS.DEALER_ORDERS, db.dealerOrders);
+          const map = new Map<string, DealerOrderBill>();
+          dealerOrdersRef.current.forEach((o) => { if (o && o.id) map.set(o.id, o); });
+          db.dealerOrders.forEach((o: DealerOrderBill) => { if (o && o.id) map.set(o.id, o); });
+          const uniqueOrders = Array.from(map.values());
+          setDealerOrders(uniqueOrders);
+          dealerOrdersRef.current = uniqueOrders;
+          safeSetItem(STORAGE_KEYS.DEALER_ORDERS, uniqueOrders);
         }
         if (Array.isArray(db.dealerCollections)) {
-          setDealerCollections(db.dealerCollections);
-          dealerCollectionsRef.current = db.dealerCollections;
-          safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, db.dealerCollections);
+          const map = new Map<string, DealerCollectionRecord>();
+          dealerCollectionsRef.current.forEach((c) => { if (c && c.id) map.set(c.id, c); });
+          db.dealerCollections.forEach((c: DealerCollectionRecord) => { if (c && c.id) map.set(c.id, c); });
+          const uniqueCollections = Array.from(map.values());
+          setDealerCollections(uniqueCollections);
+          dealerCollectionsRef.current = uniqueCollections;
+          safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, uniqueCollections);
         }
         if (db.travelSheets && typeof db.travelSheets === 'object') {
-          setTravelSheets(db.travelSheets);
-          travelSheetsRef.current = db.travelSheets;
-          safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, db.travelSheets);
-          Object.entries(db.travelSheets).forEach(([key, val]) => {
+          const mergedSheets = { ...travelSheetsRef.current, ...db.travelSheets };
+          setTravelSheets(mergedSheets);
+          travelSheetsRef.current = mergedSheets;
+          safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, mergedSheets);
+          Object.entries(mergedSheets).forEach(([key, val]) => {
             safeSetItem(`blackworm_travel_sheet_${key}`, val);
           });
         }
@@ -733,27 +782,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               safeSetItem(STORAGE_KEYS.COMPANY, payload.data.companyDetails);
             }
             if (payload.data.priceList) {
-              setPriceList(payload.data.priceList);
-              priceListRef.current = payload.data.priceList;
-              safeSetItem(STORAGE_KEYS.PRICES, payload.data.priceList);
+              const map = new Map<string, PriceListItem>();
+              priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
+              payload.data.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
+              const uniquePrices = Array.from(map.values());
+              setPriceList(uniquePrices);
+              priceListRef.current = uniquePrices;
+              safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
             }
             if (payload.data.targets) {
-              setTargets(payload.data.targets);
-              targetsRef.current = payload.data.targets;
-              safeSetItem(STORAGE_KEYS.TARGETS, payload.data.targets);
+              const map = new Map<string, TargetItem>();
+              targetsRef.current.forEach((t) => { if (t && t.id) map.set(t.id, t); });
+              payload.data.targets.forEach((t: TargetItem) => { if (t && t.id) map.set(t.id, t); });
+              const uniqueTargets = Array.from(map.values());
+              setTargets(uniqueTargets);
+              targetsRef.current = uniqueTargets;
+              safeSetItem(STORAGE_KEYS.TARGETS, uniqueTargets);
             }
             if (payload.data.dealerApplications) {
-              setDealerApplications(payload.data.dealerApplications);
-              dealerApplicationsRef.current = payload.data.dealerApplications;
-              safeSetItem(STORAGE_KEYS.DEALERS, payload.data.dealerApplications);
+              const map = new Map<string, DealerApplication>();
+              dealerApplicationsRef.current.forEach((d) => { if (d && d.id) map.set(d.id, d); });
+              payload.data.dealerApplications.forEach((d: DealerApplication) => { if (d && d.id) map.set(d.id, d); });
+              const uniqueDealers = Array.from(map.values());
+              setDealerApplications(uniqueDealers);
+              dealerApplicationsRef.current = uniqueDealers;
+              safeSetItem(STORAGE_KEYS.DEALERS, uniqueDealers);
             }
             if (payload.data.travelExpenses) {
-              setTravelExpenses(payload.data.travelExpenses);
-              travelExpensesRef.current = payload.data.travelExpenses;
-              safeSetItem(STORAGE_KEYS.EXPENSES, payload.data.travelExpenses);
+              const map = new Map<string, TravelExpense>();
+              travelExpensesRef.current.forEach((e) => { if (e && e.id) map.set(e.id, e); });
+              payload.data.travelExpenses.forEach((e: TravelExpense) => { if (e && e.id) map.set(e.id, e); });
+              const uniqueExpenses = Array.from(map.values());
+              setTravelExpenses(uniqueExpenses);
+              travelExpensesRef.current = uniqueExpenses;
+              safeSetItem(STORAGE_KEYS.EXPENSES, uniqueExpenses);
             }
             if (payload.data.users) {
               const map = new Map<string, User>();
+              usersRef.current.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
               payload.data.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
               const uniqueUsers = Array.from(map.values());
               setUsers(uniqueUsers);
@@ -769,24 +835,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             }
             if (payload.data.activities) {
-              setActivities(payload.data.activities);
-              activitiesRef.current = payload.data.activities;
-              safeSetItem(STORAGE_KEYS.ACTIVITIES, payload.data.activities);
+              const map = new Map<string, ActivityLog>();
+              activitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+              payload.data.activities.forEach((a: ActivityLog) => { if (a && a.id) map.set(a.id, a); });
+              const uniqueActivities = Array.from(map.values());
+              setActivities(uniqueActivities);
+              activitiesRef.current = uniqueActivities;
+              safeSetItem(STORAGE_KEYS.ACTIVITIES, uniqueActivities);
             }
             if (payload.data.dailyActivities) {
-              setDailyActivities(payload.data.dailyActivities);
-              dailyActivitiesRef.current = payload.data.dailyActivities;
-              safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, payload.data.dailyActivities);
+              const map = new Map<string, DailyActivity>();
+              dailyActivitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+              payload.data.dailyActivities.forEach((a: DailyActivity) => { if (a && a.id) map.set(a.id, a); });
+              const uniqueDaily = Array.from(map.values());
+              setDailyActivities(uniqueDaily);
+              dailyActivitiesRef.current = uniqueDaily;
+              safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, uniqueDaily);
             }
             if (payload.data.dealerOrders) {
-              setDealerOrders(payload.data.dealerOrders);
-              dealerOrdersRef.current = payload.data.dealerOrders;
-              safeSetItem(STORAGE_KEYS.DEALER_ORDERS, payload.data.dealerOrders);
+              const map = new Map<string, DealerOrderBill>();
+              dealerOrdersRef.current.forEach((o) => { if (o && o.id) map.set(o.id, o); });
+              payload.data.dealerOrders.forEach((o: DealerOrderBill) => { if (o && o.id) map.set(o.id, o); });
+              const uniqueOrders = Array.from(map.values());
+              setDealerOrders(uniqueOrders);
+              dealerOrdersRef.current = uniqueOrders;
+              safeSetItem(STORAGE_KEYS.DEALER_ORDERS, uniqueOrders);
             }
             if (payload.data.dealerCollections) {
-              setDealerCollections(payload.data.dealerCollections);
-              dealerCollectionsRef.current = payload.data.dealerCollections;
-              safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, payload.data.dealerCollections);
+              const map = new Map<string, DealerCollectionRecord>();
+              dealerCollectionsRef.current.forEach((c) => { if (c && c.id) map.set(c.id, c); });
+              payload.data.dealerCollections.forEach((c: DealerCollectionRecord) => { if (c && c.id) map.set(c.id, c); });
+              const uniqueCollections = Array.from(map.values());
+              setDealerCollections(uniqueCollections);
+              dealerCollectionsRef.current = uniqueCollections;
+              safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, uniqueCollections);
             }
             if (payload.data.travelSheets) {
               const updatedSheets = { ...travelSheetsRef.current, ...payload.data.travelSheets };
@@ -830,6 +912,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchAuthoritativeData();
     connectSSE();
 
+    // Periodic background sync interval (every 4 seconds) for guaranteed fresh updates without manual cache clearing
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchAuthoritativeData();
+      }
+    }, 4000);
+
     // Re-sync when mobile/browser tab becomes visible after app switch
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -850,6 +939,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       if (eventSource) eventSource.close();
       clearTimeout(reconnectTimeout);
+      clearInterval(pollInterval);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -884,27 +974,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             safeSetItem(STORAGE_KEYS.COMPANY, remoteData.companyDetails);
           }
           if (Array.isArray(remoteData.priceList)) {
-            setPriceList(remoteData.priceList);
-            priceListRef.current = remoteData.priceList;
-            safeSetItem(STORAGE_KEYS.PRICES, remoteData.priceList);
+            const map = new Map<string, PriceListItem>();
+            priceListRef.current.forEach((p) => { if (p && p.id) map.set(p.id, p); });
+            remoteData.priceList.forEach((p: PriceListItem) => { if (p && p.id) map.set(p.id, p); });
+            const uniquePrices = Array.from(map.values());
+            setPriceList(uniquePrices);
+            priceListRef.current = uniquePrices;
+            safeSetItem(STORAGE_KEYS.PRICES, uniquePrices);
           }
           if (Array.isArray(remoteData.targets)) {
-            setTargets(remoteData.targets);
-            targetsRef.current = remoteData.targets;
-            safeSetItem(STORAGE_KEYS.TARGETS, remoteData.targets);
+            const map = new Map<string, TargetItem>();
+            targetsRef.current.forEach((t) => { if (t && t.id) map.set(t.id, t); });
+            remoteData.targets.forEach((t: TargetItem) => { if (t && t.id) map.set(t.id, t); });
+            const uniqueTargets = Array.from(map.values());
+            setTargets(uniqueTargets);
+            targetsRef.current = uniqueTargets;
+            safeSetItem(STORAGE_KEYS.TARGETS, uniqueTargets);
           }
           if (Array.isArray(remoteData.dealerApplications)) {
-            setDealerApplications(remoteData.dealerApplications);
-            dealerApplicationsRef.current = remoteData.dealerApplications;
-            safeSetItem(STORAGE_KEYS.DEALERS, remoteData.dealerApplications);
+            const map = new Map<string, DealerApplication>();
+            dealerApplicationsRef.current.forEach((d) => { if (d && d.id) map.set(d.id, d); });
+            remoteData.dealerApplications.forEach((d: DealerApplication) => { if (d && d.id) map.set(d.id, d); });
+            const uniqueDealers = Array.from(map.values());
+            setDealerApplications(uniqueDealers);
+            dealerApplicationsRef.current = uniqueDealers;
+            safeSetItem(STORAGE_KEYS.DEALERS, uniqueDealers);
           }
           if (Array.isArray(remoteData.travelExpenses)) {
-            setTravelExpenses(remoteData.travelExpenses);
-            travelExpensesRef.current = remoteData.travelExpenses;
-            safeSetItem(STORAGE_KEYS.EXPENSES, remoteData.travelExpenses);
+            const map = new Map<string, TravelExpense>();
+            travelExpensesRef.current.forEach((e) => { if (e && e.id) map.set(e.id, e); });
+            remoteData.travelExpenses.forEach((e: TravelExpense) => { if (e && e.id) map.set(e.id, e); });
+            const uniqueExpenses = Array.from(map.values());
+            setTravelExpenses(uniqueExpenses);
+            travelExpensesRef.current = uniqueExpenses;
+            safeSetItem(STORAGE_KEYS.EXPENSES, uniqueExpenses);
           }
           if (Array.isArray(remoteData.users) && remoteData.users.length > 0) {
             const map = new Map<string, User>();
+            // Preserve local users first so unsaved/new users are never lost
+            usersRef.current.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
             remoteData.users.forEach((u: User) => { if (u && u.id) map.set(u.id, u); });
             const uniqueUsers = Array.from(map.values());
             setUsers(uniqueUsers);
@@ -919,31 +1027,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
           if (Array.isArray(remoteData.activities)) {
-            setActivities(remoteData.activities);
-            activitiesRef.current = remoteData.activities;
-            safeSetItem(STORAGE_KEYS.ACTIVITIES, remoteData.activities);
+            const map = new Map<string, ActivityLog>();
+            activitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+            remoteData.activities.forEach((a: ActivityLog) => { if (a && a.id) map.set(a.id, a); });
+            const uniqueActivities = Array.from(map.values());
+            setActivities(uniqueActivities);
+            activitiesRef.current = uniqueActivities;
+            safeSetItem(STORAGE_KEYS.ACTIVITIES, uniqueActivities);
           }
           if (Array.isArray(remoteData.dailyActivities)) {
-            setDailyActivities(remoteData.dailyActivities);
-            dailyActivitiesRef.current = remoteData.dailyActivities;
-            safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, remoteData.dailyActivities);
+            const map = new Map<string, DailyActivity>();
+            dailyActivitiesRef.current.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+            remoteData.dailyActivities.forEach((a: DailyActivity) => { if (a && a.id) map.set(a.id, a); });
+            const uniqueDaily = Array.from(map.values());
+            setDailyActivities(uniqueDaily);
+            dailyActivitiesRef.current = uniqueDaily;
+            safeSetItem(STORAGE_KEYS.DAILY_ACTIVITIES, uniqueDaily);
           }
           if (Array.isArray(remoteData.dealerOrders)) {
-            setDealerOrders(remoteData.dealerOrders);
-            dealerOrdersRef.current = remoteData.dealerOrders;
-            safeSetItem(STORAGE_KEYS.DEALER_ORDERS, remoteData.dealerOrders);
+            const map = new Map<string, DealerOrderBill>();
+            dealerOrdersRef.current.forEach((o) => { if (o && o.id) map.set(o.id, o); });
+            remoteData.dealerOrders.forEach((o: DealerOrderBill) => { if (o && o.id) map.set(o.id, o); });
+            const uniqueOrders = Array.from(map.values());
+            setDealerOrders(uniqueOrders);
+            dealerOrdersRef.current = uniqueOrders;
+            safeSetItem(STORAGE_KEYS.DEALER_ORDERS, uniqueOrders);
           }
           if (Array.isArray(remoteData.dealerCollections)) {
-            setDealerCollections(remoteData.dealerCollections);
-            dealerCollectionsRef.current = remoteData.dealerCollections;
-            safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, remoteData.dealerCollections);
+            const map = new Map<string, DealerCollectionRecord>();
+            dealerCollectionsRef.current.forEach((c) => { if (c && c.id) map.set(c.id, c); });
+            remoteData.dealerCollections.forEach((c: DealerCollectionRecord) => { if (c && c.id) map.set(c.id, c); });
+            const uniqueCollections = Array.from(map.values());
+            setDealerCollections(uniqueCollections);
+            dealerCollectionsRef.current = uniqueCollections;
+            safeSetItem(STORAGE_KEYS.DEALER_COLLECTIONS, uniqueCollections);
           }
           if (remoteData.travelSheets && typeof remoteData.travelSheets === 'object') {
             const updatedSheets = { ...travelSheetsRef.current, ...remoteData.travelSheets };
             setTravelSheets(updatedSheets);
             travelSheetsRef.current = updatedSheets;
             safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updatedSheets);
-            Object.entries(remoteData.travelSheets).forEach(([key, val]) => {
+            Object.entries(updatedSheets).forEach(([key, val]) => {
               safeSetItem(`blackworm_travel_sheet_${key}`, val);
             });
           }
@@ -1675,19 +1799,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CRUD for Travel Sheets (Syncs across devices with 0ms local state & debounced broadcast)
   const saveTravelSheet = useCallback((sheetKey: string, sheetPayload: any) => {
+    let updatedSheets: Record<string, any> = {};
     setTravelSheets((prev) => {
-      const updated = { ...prev, [sheetKey]: sheetPayload };
-      safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updated);
-      travelSheetsRef.current = updated;
-      return updated;
+      updatedSheets = { ...prev, [sheetKey]: sheetPayload };
+      travelSheetsRef.current = updatedSheets;
+      safeSetItem(STORAGE_KEYS.TRAVEL_SHEETS, updatedSheets);
+      return updatedSheets;
     });
 
     // Save individual key for fast lookup
     safeSetItem(`blackworm_travel_sheet_${sheetKey}`, sheetPayload);
 
     // Broadcast across all connected clients with debounced sync
-    debouncedBroadcastSync('TRAVEL_SHEET_SYNC', { travelSheets: { [sheetKey]: sheetPayload } }, 250);
-  }, [debouncedBroadcastSync, safeSetItem]);
+    debouncedBroadcastSync('TRAVEL_SHEET_SYNC', { travelSheets: updatedSheets }, 250);
+
+    // Save directly to server travel-sheets endpoint
+    fetch('/api/travel-sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetKey, sheetPayload, sender: clientId }),
+    }).catch((err) => console.warn('Failed to save travel sheet on cloud server:', err));
+  }, [clientId, debouncedBroadcastSync, safeSetItem]);
 
   // CRUD for Users
   const addUser = useCallback((user: Omit<User, 'id'>) => {
@@ -1696,8 +1828,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'USR-' + Date.now().toString().slice(-4),
     };
     setUsers((prev) => {
-      const updated = [newUser, ...prev];
+      const filtered = prev.filter((u) => u.id !== newUser.id && u.loginId !== newUser.loginId);
+      const updated = [newUser, ...filtered];
+      usersRef.current = updated;
       safeSetItem(STORAGE_KEYS.USERS, updated);
+      broadcastSync('USER_UPDATE', { users: updated });
       return updated;
     });
 
@@ -1713,12 +1848,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('New User Created', 'नवीन युजर तयार केला', 'user-management', `${newUser.fullName} (${newUser.role})`);
     showNotification(language === 'mr' ? 'नवीन युजर आणि त्यांची टार्गेट सीट यशस्वीरित्या तयार झाली!' : 'New user & target sheet created successfully!');
-  }, [addTarget, clientId, language, logActivity, showNotification]);
+  }, [addTarget, broadcastSync, clientId, language, logActivity, showNotification, safeSetItem]);
 
   const updateUser = useCallback((id: string, patch: Partial<User>) => {
     setUsers((prev) => {
       const updated = prev.map((u) => (u.id === id ? { ...u, ...patch } : u));
+      usersRef.current = updated;
       safeSetItem(STORAGE_KEYS.USERS, updated);
+      broadcastSync('USER_UPDATE', { users: updated });
       return updated;
     });
 
@@ -1739,7 +1876,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     logActivity('User Profile Updated', 'युजर प्रोफाइल अद्ययावत केली', 'user-management', `युजर ${id} अपडेट केला.`);
     showNotification(language === 'mr' ? 'युजर माहिती अद्ययावत झाली.' : 'User updated successfully.');
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification, safeSetItem]);
 
   const deleteUser = useCallback((id: string) => {
     const userToDelete = usersRef.current.find((u) => u.id === id || u.loginId === id);
@@ -1785,14 +1922,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setUsers((prev) => {
       const updated = prev.filter((u) => u.id !== id);
+      usersRef.current = updated;
       safeSetItem(STORAGE_KEYS.USERS, updated);
+      broadcastSync('USER_UPDATE', { users: updated });
       return updated;
     });
 
     // Also remove any target sheet associated with this user
     setTargets((prev) => {
       const updated = prev.filter((t) => t.userId !== id && t.executiveId !== id);
+      targetsRef.current = updated;
       safeSetItem(STORAGE_KEYS.TARGETS, updated);
+      broadcastSync('TARGET_UPDATE', { targets: updated });
       return updated;
     });
 
@@ -1808,7 +1949,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `एडमिनद्वारे युजर व संबंधित टार्गेट सीट हटवली.`
         : `User and associated target sheet deleted by Admin.`
     );
-  }, [clientId, language, logActivity, showNotification]);
+  }, [broadcastSync, clientId, language, logActivity, showNotification, safeSetItem]);
 
   // Reset & Backup Utilities
   const resetAllData = useCallback(() => {

@@ -33,7 +33,10 @@ export const TravelingExpenses: React.FC = React.memo(() => {
   const isAdmin = currentUser ? (
     currentUser.role === 'admin' || 
     currentUser.loginId === 'admin' ||
-    currentUser.loginId === 'pravin waghmare'
+    currentUser.loginId === 'pravin' ||
+    currentUser.loginId === 'pravin waghmare' ||
+    currentUser.id === 'USR-001' ||
+    currentUser.id === 'USR-PRAVIN'
   ) : false;
   const monthInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -69,9 +72,25 @@ export const TravelingExpenses: React.FC = React.memo(() => {
     if (currentUser && !currentUser.fullName?.toLowerCase().includes('shinde')) {
       return currentUser.id;
     }
-    return travelUsers[0]?.id || 'USR-001';
+    return travelUsers[0]?.id || 'USR-PRAVIN';
   });
-  const [selectedMonthYear, setSelectedMonthYear] = useState<string>(getCurrentMonthYear());
+
+  const [selectedMonthYear, setSelectedMonthYear] = useState<string>(() => {
+    const currentMonth = getCurrentMonthYear();
+    const targetUserId = (currentUser && !currentUser.fullName?.toLowerCase().includes('shinde')) ? currentUser.id : 'USR-PRAVIN';
+    if (travelSheets && typeof travelSheets === 'object') {
+      if (travelSheets[`${targetUserId}_${currentMonth}`]) {
+        return currentMonth;
+      }
+      const existingKeys = Object.keys(travelSheets).filter((k) => k.startsWith(`${targetUserId}_`));
+      if (existingKeys.length > 0) {
+        existingKeys.sort().reverse();
+        const latestMonth = existingKeys[0].replace(`${targetUserId}_`, '');
+        if (latestMonth) return latestMonth;
+      }
+    }
+    return currentMonth;
+  });
 
   // Active target user
   const activeUser = travelUsers.find((u) => u.id === selectedUserId) || travelUsers[0] || currentUser || users[0];
@@ -79,13 +98,23 @@ export const TravelingExpenses: React.FC = React.memo(() => {
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   const [sheetData, setSheetData] = useState<MonthlyTravelSheetData>(() => {
-    const userId = currentUser?.id || 'USR-001';
+    const userId = (currentUser && !currentUser.fullName?.toLowerCase().includes('shinde')) ? currentUser.id : 'USR-PRAVIN';
     const currentMonth = getCurrentMonthYear();
     const sheetKey = `${userId}_${currentMonth}`;
     const storageKey = `blackworm_travel_sheet_${sheetKey}`;
     
     if (travelSheets && travelSheets[sheetKey]) {
       return travelSheets[sheetKey];
+    }
+    // Check if any other month exists for this user in travelSheets
+    if (travelSheets && typeof travelSheets === 'object') {
+      const existingKeys = Object.keys(travelSheets).filter((k) => k.startsWith(`${userId}_`));
+      if (existingKeys.length > 0) {
+        existingKeys.sort().reverse();
+        if (travelSheets[existingKeys[0]]) {
+          return travelSheets[existingKeys[0]];
+        }
+      }
     }
     const saved = localStorage.getItem(storageKey);
     if (saved) {

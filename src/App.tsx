@@ -15,6 +15,9 @@ import { OrderCollection } from './components/OrderCollection';
 import { DailyActivityLog } from './components/DailyActivityLog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { A4PrintPreviewModal } from './components/A4PrintPreviewModal';
+import { NetworkStatus } from './components/NetworkStatus';
+import { isTabAllowedForUser } from './utils/permissionHelpers';
+import { NavTab } from './types';
 import {
   LayoutDashboard,
   CalendarCheck2,
@@ -22,6 +25,11 @@ import {
   Target,
   Menu,
   ArrowUp,
+  Compass,
+  Users,
+  Sprout,
+  Gift,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -156,6 +164,13 @@ const MainContent: React.FC = () => {
     );
   }
 
+  // Auto-redirect to allowed tab if user somehow lands on an unauthorized tab
+  React.useEffect(() => {
+    if (currentUser && !isTabAllowedForUser(activeTab, currentUser)) {
+      setActiveTab('target-sheet');
+    }
+  }, [currentUser, activeTab, setActiveTab]);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -180,17 +195,21 @@ const MainContent: React.FC = () => {
         return <UserManagement />;
       case 'order-collection':
         return <OrderCollection />;
+      case 'daily-activity':
+        return <DailyActivityLog />;
       default:
-        return <Dashboard />;
+        return <TargetSheet />;
     }
   };
 
-  const mobileBottomNavItems = [
-    { id: 'dashboard' as const, labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'order-collection' as const, labelMr: 'ऑर्डर व वसुली', labelEn: 'Orders', icon: Receipt },
-    { id: 'target-sheet' as const, labelMr: 'टार्गेट', labelEn: 'Targets', icon: Target },
-    { id: 'settings' as const, labelMr: 'सेटिंग', labelEn: 'Settings', icon: Menu },
+  const allBottomNavItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
+    { id: 'travel-expenses', labelMr: 'ट्रॅव्हलिंग', labelEn: 'Travelling', icon: Compass },
+    { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
+    { id: 'target-sheet', labelMr: 'टार्गेट', labelEn: 'Target', icon: Target },
   ];
+
+  const mobileBottomNavItems = allBottomNavItems.filter((item) => isTabAllowedForUser(item.id, currentUser));
 
   return (
     <div className="bg-slate-50 flex flex-col selection:bg-red-500 selection:text-white font-sans text-slate-800 pb-32 md:pb-8">
@@ -199,7 +218,7 @@ const MainContent: React.FC = () => {
 
       {/* Main Body View */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <ErrorBoundary key={activeTab} onReset={() => setActiveTab('dashboard')}>
+        <ErrorBoundary key={activeTab} onReset={() => setActiveTab('target-sheet')}>
           {renderTabContent()}
         </ErrorBoundary>
       </main>
@@ -207,9 +226,9 @@ const MainContent: React.FC = () => {
       {/* Mobile-First WhatsApp-style Bottom Navigation Bar */}
       <nav
         id="mobile-bottom-app-bar"
-        className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg md:hidden"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg md:hidden overflow-x-auto scrollbar-none"
       >
-        <div className="grid grid-cols-4 h-14">
+        <div className="flex items-center justify-around h-14 min-w-full px-1">
           {mobileBottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -221,7 +240,7 @@ const MainContent: React.FC = () => {
                   setActiveTab(item.id);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`flex flex-col items-center justify-center gap-0.5 py-1 text-center transition-colors cursor-pointer active:scale-95 ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 text-center transition-colors cursor-pointer active:scale-95 min-w-[50px] ${
                   isActive ? 'text-red-600 font-black' : 'text-slate-500 hover:text-slate-800 font-semibold'
                 }`}
               >
@@ -232,7 +251,7 @@ const MainContent: React.FC = () => {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] leading-tight truncate px-0.5 max-w-[64px]">
+                <span className="text-[10px] leading-tight truncate px-0.5">
                   {item.labelMr}
                 </span>
               </button>
@@ -277,6 +296,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
+        <NetworkStatus />
         <MainContent />
       </AppProvider>
     </ErrorBoundary>

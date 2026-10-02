@@ -21,6 +21,7 @@ import {
   X,
   LogOut,
   Sparkles,
+  Sprout,
 } from 'lucide-react';
 
 export const Header: React.FC = React.memo(() => {
@@ -53,16 +54,17 @@ export const Header: React.FC = React.memo(() => {
   const pendingExpensesCount = travelExpenses.filter((e) => e.status === 'pending').length;
 
   const navItems: { id: NavTab; labelMr: string; labelEn: string; icon: React.ComponentType<{ className?: string }>; badge?: number; hasUpdate?: boolean }[] = [
-    { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { id: 'target-sheet', labelMr: 'टार्गेट सीट', labelEn: 'Target Sheet', icon: Target, hasUpdate: true },
-    { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
-    { id: 'order-collection', labelMr: 'ऑर्डर आणि कलेक्शन', labelEn: 'Order & Collection', icon: Receipt, hasUpdate: true },
-    { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
+    { id: 'target-sheet', labelMr: 'टार्गेट सेट', labelEn: 'Target Sheet', icon: Target, hasUpdate: true },
+    { id: 'order-collection', labelMr: 'ऑर्डर कॅल्क्युलेट', labelEn: 'Order Calculator', icon: Receipt, hasUpdate: true },
     { id: 'dealer-form', labelMr: 'डीलर', labelEn: 'Dealer', icon: Users, badge: pendingDealersCount, hasUpdate: true },
-    { id: 'travel-expenses', labelMr: 'ट्रॅव्हल', labelEn: 'Travel', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
+    { id: 'travel-expenses', labelMr: 'ट्रॅव्हल्स', labelEn: 'Travel Expenses', icon: Compass, badge: pendingExpensesCount, hasUpdate: true },
     { id: 'scheme', labelMr: 'स्कीम', labelEn: 'Scheme', icon: Gift },
-    { id: 'reporting', labelMr: 'रिपोर्ट', labelEn: 'Report', icon: BarChart3, hasUpdate: true },
+    { id: 'daily-activity', labelMr: 'लागवड', labelEn: 'Cultivation', icon: Sprout },
     { id: 'settings', labelMr: 'सेटिंग', labelEn: 'Setting', icon: Settings },
+    { id: 'dashboard', labelMr: 'डॅशबोर्ड', labelEn: 'Dashboard', icon: LayoutDashboard },
+    { id: 'user-management', labelMr: 'युजर', labelEn: 'User', icon: UserCheck },
+    { id: 'price-list', labelMr: 'प्राइस लिस्ट', labelEn: 'Price List', icon: FileSpreadsheet },
+    { id: 'reporting', labelMr: 'रिपोर्ट', labelEn: 'Report', icon: BarChart3, hasUpdate: true },
   ];
 
   const allowedNavItems = navItems.filter((item) => isTabAllowedForUser(item.id, currentUser));
